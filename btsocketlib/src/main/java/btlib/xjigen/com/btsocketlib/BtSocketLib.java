@@ -3,6 +3,7 @@ package btlib.xjigen.com.btsocketlib;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -15,6 +16,7 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -112,6 +114,119 @@ public class BtSocketLib {
         }
     };
 
+    private void onConnect(String address) {
+        int index;
+        if ((index = address.indexOf("\n")) != -1) {
+            address = address.substring(index + 1);
+        }
+        // クライアント用のスレッドを生成
+        mClientThread = new ClientThread(address);
+        mClientThread.start();
+    }
+
+
+    private void onStartServer() {
+        if (mServerThread != null) {
+            mServerThread.cancel();
+        }
+        mServerThread = new ServerThread();
+        mServerThread.start();
+    }
+
+    private void onCancel() {
+        if (mServerThread != null) {
+            mServerThread.cancel();
+            mServerThread = null;
+        }
+        if (mClientThread != null) {
+            mClientThread.cancel();
+            mClientThread = null;
+        }
+    }
+
+    private class ClientThread extends ReceiverThread  {
+        private final BluetoothDevice mServer;
+
+        private ClientThread(String address) {
+            mServer = mBluetoothAdapter.getRemoteDevice(address);
+            try {
+                mSocket = mServer.createRfcommSocketToServiceRecord(mUuid);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void run() {
+            // connect() の前にデバイス検出をやめる必要がある
+            mBluetoothAdapter.cancelDiscovery();
+            try {
+                // サーバに接続する
+                mSocket.connect();
+                callbackConnect();
+                loop();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                cancel();
+            }
+
+        }
+
+        private void cancel() {
+            try {
+                mSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    //============================
+    //サーバー側の処理
+    //============================
+    /**
+     * サーバーのスレッド
+     *
+     */
+    private class ServerThread extends ReceiverThread  {
+        private BluetoothServerSocket mServerSocket;
+
+        private ServerThread() {
+            try {
+                mServerSocket = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(
+                        activity.getPackageName(), mUuid);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void run() {
+            try {
+                mSocket = mServerSocket.accept();
+                callbackConnect();
+                loop();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                cancel();
+            }
+        }
+
+        private void cancel() {
+            try {
+                mServerSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void callbackConnect(){
+        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"");
+    }
+
 
     private static BtSocketLib _library = new BtSocketLib();
 
@@ -121,7 +236,16 @@ public class BtSocketLib {
     private String pairingCallbackGameObject;
     private String pairingDelegateMethod;
 
+    private String connectCallbackGameObject;
+    private String connectDelegateMethod;
+
     private BtSocketLib(){
+        mCandidateServers = new ArrayList();
+    }
+
+    public static void startServer()
+    {
+        _library.onStartServer();
     }
 
     public static void activeBluetooth() {
@@ -139,4 +263,17 @@ public class BtSocketLib {
         _library.searchDelegateMethod = delegateMethod;
         _library.onSearchDevice();
     }
+
+    //接続
+    public static void connect(String address,String gameObjectName,String delegateMethod)
+    {
+        _library.connectCallbackGameObject = gameObjectName;
+        _library.connectDelegateMethod = delegateMethod;
+        _library.onConnect(address);
+    }
+
+    public static void cancel(){
+        _library.onCancel();
+    }
+
 }

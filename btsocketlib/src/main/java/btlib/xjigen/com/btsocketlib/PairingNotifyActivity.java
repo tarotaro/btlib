@@ -30,6 +30,7 @@ public class PairingNotifyActivity extends Activity {
         if (requestCode == BtSocketLib.REQUEST_DISCOVERABLE_BT) {
             if (resultCode == BtSocketLib.WAIT_TIME) {
                 callBackPairing();
+                finish();
             }
         }
     }
