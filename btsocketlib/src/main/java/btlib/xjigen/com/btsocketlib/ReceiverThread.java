@@ -7,12 +7,14 @@ import android.support.v4.util.CircularArray;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 
 public abstract class ReceiverThread extends Thread {
     protected BluetoothSocket mSocket;
     protected CircularArray buffer = new CircularArray<Integer>(512);
-    protected void sendData(Byte data[],int length ) throws IOException{
-
+    protected void sendData(byte data[]) throws IOException {
+        OutputStream os = mSocket.getOutputStream();
+        os.write(data);
     }
 
     protected CircularArray getBuffer(){

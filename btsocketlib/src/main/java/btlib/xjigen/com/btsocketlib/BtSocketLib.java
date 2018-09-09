@@ -272,6 +272,23 @@ public class BtSocketLib {
         _library.onConnect(address);
     }
 
+    public static void sendData(String sendedData){
+        if (_library.mServerThread != null) {
+            try {
+                _library.mServerThread.sendData(sendedData.getBytes());
+            }catch (IOException ex){
+                ex.printStackTrace();
+            }
+        }
+        if (_library.mClientThread != null) {
+            try {
+                _library.mClientThread.sendData(sendedData.getBytes());
+            }catch (IOException ex){
+                ex.printStackTrace();
+            }
+        }
+    }
+
     public static void cancel(){
         _library.onCancel();
     }
