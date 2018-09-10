@@ -82,7 +82,8 @@ public class BtSocketLib {
         try {
             for (BluetoothDevice dev : ret) {
                 JSONObject device = new JSONObject();
-                device.put(dev.getName(), dev.getAddress());
+                device.put("device",dev.getName());
+                device.put("address", dev.getAddress());
                 deviceArray.put(device);
             }
             object.put("devices",deviceArray);
