@@ -24,17 +24,19 @@ android {
 
 }
 
+android.libraryVariants.all { variant ->
+    variant.outputs.each { output ->
+        output.packageLibrary.exclude('libs/unity_classes.jar')
+    }
+}
+
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
-    compile files('libs/classes.jar')
     implementation 'com.android.support:appcompat-v7:28.0.0-rc02'
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'com.android.support.test:runner:1.0.2'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
+    provided files('libs/unity_classes.jar')
 }
 
-android.libraryVariants.all { variant ->
-    variant.outputs.each { output ->
-        output.packageLibrary.exclude('libs/classes.jar')
-    }
-}
+
+

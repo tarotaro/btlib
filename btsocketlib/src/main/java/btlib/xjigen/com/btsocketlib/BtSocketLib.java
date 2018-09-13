@@ -82,7 +82,11 @@ public class BtSocketLib {
         try {
             for (BluetoothDevice dev : ret) {
                 JSONObject device = new JSONObject();
-                device.put("device",dev.getName());
+                String devName = dev.getName();
+                if(devName == null){
+                    devName = "NoName";
+                }
+                device.put("device",devName);
                 device.put("address", dev.getAddress());
                 deviceArray.put(device);
             }
@@ -116,10 +120,6 @@ public class BtSocketLib {
     };
 
     private void onConnect(String address) {
-        int index;
-        if ((index = address.indexOf("\n")) != -1) {
-            address = address.substring(index + 1);
-        }
         // クライアント用のスレッドを生成
         mClientThread = new ClientThread(address);
         mClientThread.start();
@@ -244,8 +244,10 @@ public class BtSocketLib {
         mCandidateServers = new ArrayList();
     }
 
-    public static void startServer()
+    public static void startServer(String gameObjectName,String delegateMethod)
     {
+        _library.connectCallbackGameObject = gameObjectName;
+        _library.connectDelegateMethod = delegateMethod;
         _library.onStartServer();
     }
 
@@ -260,6 +262,7 @@ public class BtSocketLib {
     }
 
     public static void searchDevice(String gameObjectName,String delegateMethod) {
+        Log.w("searchDevice","****search****");
         _library.searchCallBackGameObject = gameObjectName;
         _library.searchDelegateMethod = delegateMethod;
         _library.onSearchDevice();
