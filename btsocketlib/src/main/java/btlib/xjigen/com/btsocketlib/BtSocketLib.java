@@ -9,6 +9,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.support.annotation.NonNull;
 import android.util.Log;
 import com.unity3d.player.UnityPlayer;
 
@@ -17,8 +18,19 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.UUID;
+
+import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
+import static android.bluetooth.BluetoothAdapter.STATE_CONNECTING;
+import static android.media.session.PlaybackState.STATE_NONE;
 
 /**
  * Example local unit test, which will execute on the development machine (host).
@@ -36,6 +48,7 @@ public class BtSocketLib {
     private final UUID mUuid = UUID.fromString("5726CA0C-A6F6-4B05-A178-8070D54A91C0");
     private ServerThread mServerThread;    //サーバー用のスレッド
     private ClientThread mClientThread;    //クライアント用のスレッド
+    private ReadWriteModel mReadWriteThread;
     private final Activity activity = UnityPlayer.currentActivity;
 
     private void onActiveBluetooth() {
@@ -164,12 +177,12 @@ public class BtSocketLib {
             try {
                 // サーバに接続する
                 mSocket.connect();
+                mReadWriteThread = new ReadWriteModel(mSocket);
+                mReadWriteThread.start();
                 callbackConnect();
-                loop();
+                Log.w("***ClientConnect***","***connect***");
             } catch (IOException e) {
                 e.printStackTrace();
-            } finally {
-                cancel();
             }
 
         }
@@ -204,15 +217,23 @@ public class BtSocketLib {
 
         @Override
         public void run() {
-            try {
-                mSocket = mServerSocket.accept();
-                callbackConnect();
-                loop();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                cancel();
+            while (true) {
+                try {
+                    mSocket = mServerSocket.accept();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    if(mSocket != null) {
+                        mReadWriteThread = new ReadWriteModel(mSocket);
+                        mReadWriteThread.start();
+                        Log.w("***SearverConnect***","***connect***");
+                        callbackConnect();
+                        cancel();
+                        break;
+                    }
+                }
             }
+
         }
 
         private void cancel() {
@@ -223,6 +244,73 @@ public class BtSocketLib {
             }
         }
     }
+
+    public class ReadWriteModel extends Thread {
+        //ソケットに対するI/O処理
+        private InputStream _in;
+        private OutputStream _out;
+        private Queue<Byte> _readQueue;
+        private Queue<Byte> _writeQueue;
+
+        //コンストラクタの定義
+        public ReadWriteModel(BluetoothSocket socket){
+            try {
+                //接続済みソケットからI/Oストリームをそれぞれ取得
+                _in = socket.getInputStream();
+                _out = socket.getOutputStream();
+                _readQueue = new LinkedList<Byte>();
+                _writeQueue = new LinkedList<Byte>();
+            }catch (IOException ex){
+                ex.printStackTrace();
+            }
+        }
+
+        public void write(byte[] buf){
+            for(int i = 0;i<buf.length;i++){
+                _writeQueue.add(buf[i]);
+            }
+        }
+
+        public Byte[] read(int length){
+            ArrayList<Byte> arrayList = new ArrayList<Byte>();
+            for(int i = 0;i<length&&!_readQueue.isEmpty();i++){
+                arrayList.add(_readQueue.remove());
+            }
+            Byte[] ret = new Byte[arrayList.size()];
+            arrayList.toArray(ret);
+            return ret;
+        }
+
+        public void run() {
+            byte[] buf = new byte[1024];
+            String rcvNum = null;
+            int tmpBuf = 0;
+
+            while(true){
+                try {
+                    tmpBuf = _in.read(buf);
+                    if(!_writeQueue.isEmpty()){
+                        ArrayList<Byte> wo = new ArrayList<Byte>();
+                        for(int i = 0;!_writeQueue.isEmpty();i++){
+                            byte b = _writeQueue.remove();
+                            _out.write(b);
+                        }
+                        _out.flush();
+                    }
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
+                    break;
+                }
+                if(tmpBuf!=0){
+                    for(int i=0;i<buf.length;i++){
+                        _readQueue.add(buf[i]);
+                    }
+                }
+            }
+        }
+    }
+
 
     private void callbackConnect(){
         UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"");
@@ -277,19 +365,14 @@ public class BtSocketLib {
     }
 
     public static void sendData(String sendedData){
-        if (_library.mServerThread != null) {
-            try {
-                _library.mServerThread.sendData(sendedData.getBytes());
-            }catch (IOException ex){
-                ex.printStackTrace();
-            }
-        }
-        if (_library.mClientThread != null) {
-            try {
-                _library.mClientThread.sendData(sendedData.getBytes());
-            }catch (IOException ex){
-                ex.printStackTrace();
-            }
+        _library.mReadWriteThread.write(sendedData.getBytes());
+    }
+
+    public static int IsConnected(){
+        if(_library.mSocket.isConnected()){
+            return 1;
+        }else{
+            return 0;
         }
     }
 
