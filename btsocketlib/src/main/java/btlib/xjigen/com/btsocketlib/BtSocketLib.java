@@ -17,75 +17,29 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.UUID;
 
-import static android.bluetooth.BluetoothAdapter.STATE_CONNECTED;
-import static android.bluetooth.BluetoothAdapter.STATE_CONNECTING;
-import static android.media.session.PlaybackState.STATE_NONE;
 
-/**
- * Example local unit test, which will execute on the development machine (host).
- *
- * @see <a href="http://d.android.com/tools/testing">Testing documentation</a>
- */
-public class BtSocketLib {
+
+public class BtSocketLib implements BLEServer.ServerConnectInterface {
 //SingletonBtSocketLib
-    private final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-    protected BluetoothSocket mSocket;
-    public static final int REQUEST_DISCOVERABLE_BT = 5000;
-    public static final int WAIT_TIME = 120;
-    private static ArrayList<BluetoothDevice> mCandidateServers;
 
-    private final UUID mUuid = UUID.fromString("5726CA0C-A6F6-4B05-A178-8070D54A91C0");
-    private ServerThread mServerThread;    //サーバー用のスレッド
-    private ClientThread mClientThread;    //クライアント用のスレッド
-    private ReadWriteModel mReadWriteThread;
+    public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
+
+    private Advertise mAdvertise;
     private final Activity activity = UnityPlayer.currentActivity;
-
-    private void onActiveBluetooth() {
-        if (mBluetoothAdapter == null) {
-            // Bluetoothはサポートされていない
-            return;
-        }
-
-        if (!mBluetoothAdapter.isEnabled()) {
-            //ブルートゥースをONにする
-            mBluetoothAdapter.enable();
-        }
-    }
-
-    /**
-     * ペアリング待ちを行う
-     */
-    private void onPairingBluetooth() {
-        Intent intent = new Intent();
-        intent.setAction(Intent.ACTION_MAIN);
-        intent.setClassName(activity, "btlib.xjigen.com.btsocketlib.PairingNotifyActivity");
-        intent.putExtra("gameObjectName",pairingCallbackGameObject);
-        intent.putExtra("delegateMethod",pairingDelegateMethod);
-        activity.startActivity(intent);
-    }
+    private boolean isConnect = false;
+    private ReadWriteModel mReadWriteModel;
 
 
     /**
      * デバイスをSearchさせる
      */
     private void onSearchDevice() {
-        mCandidateServers.clear();
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(BluetoothDevice.ACTION_FOUND);
-        filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        activity.registerReceiver(mReceiver, filter);
-        mBluetoothAdapter.startDiscovery();
+
     }
 
     private void callBackEndSearch(BluetoothDevice ret[]){
@@ -95,13 +49,13 @@ public class BtSocketLib {
         try {
             for (BluetoothDevice dev : ret) {
                 JSONObject device = new JSONObject();
-                String devName = dev.getName();
+                /*String devName = dev.getName();
                 if(devName == null){
                     devName = "NoName";
                 }
                 device.put("device",devName);
                 device.put("address", dev.getAddress());
-                deviceArray.put(device);
+                deviceArray.put(device);*/
             }
             object.put("devices",deviceArray);
         }catch (JSONException exp){
@@ -110,226 +64,74 @@ public class BtSocketLib {
         UnityPlayer.UnitySendMessage(searchCallBackGameObject,searchDelegateMethod,object.toString());
     }
 
-    /**
-     * デバイスの検索
-     */
-    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-                // deviceをリストに格納
-                mCandidateServers.add(device);
-            }
-            else if (BluetoothAdapter.ACTION_DISCOVERY_FINISHED.equals(action)) {
-                context.unregisterReceiver(mReceiver);
-                //デバイス検索の終了
-                BluetoothDevice[] ret = null;
-                ret = mCandidateServers.toArray(new BluetoothDevice[mCandidateServers.size()]);
-                callBackEndSearch(ret);
-            }
-        }
-    };
-
-    private void onConnect(String address) {
-        // クライアント用のスレッドを生成
-        mClientThread = new ClientThread(address);
-        mClientThread.start();
-    }
 
 
     private void onStartServer() {
-        if (mServerThread != null) {
-            mServerThread.cancel();
-        }
-        mServerThread = new ServerThread();
-        mServerThread.start();
+        mReadWriteModel = new ReadWriteModel();
+        mAdvertise = new Advertise();
+        mAdvertise.startAdvertise(activity.getApplicationContext());
+        mAdvertise.getBLEServer().connectInterface = this;
     }
 
     private void onCancel() {
-        if (mServerThread != null) {
-            mServerThread.cancel();
-            mServerThread = null;
-        }
-        if (mClientThread != null) {
-            mClientThread.cancel();
-            mClientThread = null;
+        if(mAdvertise != null){
+            mAdvertise.stopAdvertise();
         }
     }
 
-    private class ClientThread extends ReceiverThread  {
-        private final BluetoothDevice mServer;
-
-        private ClientThread(String address) {
-            mServer = mBluetoothAdapter.getRemoteDevice(address);
-            try {
-                mSocket = mServer.createRfcommSocketToServiceRecord(mUuid);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void run() {
-            // connect() の前にデバイス検出をやめる必要がある
-            mBluetoothAdapter.cancelDiscovery();
-            try {
-                // サーバに接続する
-                mSocket.connect();
-                mReadWriteThread = new ReadWriteModel(mSocket);
-                mReadWriteThread.start();
-                callbackConnect();
-                Log.w("***ClientConnect***","***connect***");
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-        }
-
-        private void cancel() {
-            try {
-                mSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    @Override
+    public void onConnect() {
+        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"connect");
     }
 
-    //============================
-    //サーバー側の処理
-    //============================
-    /**
-     * サーバーのスレッド
-     *
-     */
-    private class ServerThread extends ReceiverThread  {
-        private BluetoothServerSocket mServerSocket;
-
-        private ServerThread() {
-            try {
-                mServerSocket = mBluetoothAdapter.listenUsingRfcommWithServiceRecord(
-                        activity.getPackageName(), mUuid);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                try {
-                    mSocket = mServerSocket.accept();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    if(mSocket != null) {
-                        mReadWriteThread = new ReadWriteModel(mSocket);
-                        mReadWriteThread.start();
-                        Log.w("***SearverConnect***","***connect***");
-                        callbackConnect();
-                        cancel();
-                        break;
-                    }
-                }
-            }
-
-        }
-
-        private void cancel() {
-            try {
-                mServerSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    @Override
+    public void disConnect() {
+        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"disconnect");
     }
 
-    public class ReadWriteModel extends Thread {
-        //ソケットに対するI/O処理
-        private InputStream _in;
-        private OutputStream _out;
+
+    public class ReadWriteModel {
         private Queue<Byte> _readQueue;
         private Queue<Byte> _writeQueue;
-
-        //コンストラクタの定義
-        public ReadWriteModel(BluetoothSocket socket){
-            try {
-                //接続済みソケットからI/Oストリームをそれぞれ取得
-                _in = socket.getInputStream();
-                _out = socket.getOutputStream();
-                _readQueue = new LinkedList<Byte>();
-                _writeQueue = new LinkedList<Byte>();
-            }catch (IOException ex){
-                ex.printStackTrace();
-            }
+        public ReadWriteModel(){
         }
 
         public void write(byte[] buf){
-            for(int i = 0;i<buf.length;i++){
-                _writeQueue.add(buf[i]);
+            if(mAdvertise != null) {
+                _writeQueue = new LinkedList<Byte>();
+                for (int i = 0; i < buf.length; i++) {
+                    _writeQueue.add(buf[i]);
+                }
+                mAdvertise.getBLEServer().addWriteQueue(_writeQueue);
             }
         }
 
         public Byte[] read(int length){
-            ArrayList<Byte> arrayList = new ArrayList<Byte>();
-            for(int i = 0;i<length&&!_readQueue.isEmpty();i++){
-                arrayList.add(_readQueue.remove());
-            }
-            Byte[] ret = new Byte[arrayList.size()];
-            arrayList.toArray(ret);
-            return ret;
-        }
+            if(mAdvertise != null) {
+                _readQueue = mAdvertise.getBLEServer().getReadQueue();
 
-        public void run() {
-            byte[] buf = new byte[1024];
-            String rcvNum = null;
-            int tmpBuf = 0;
-
-            while(true){
-                try {
-                    tmpBuf = _in.read(buf);
-                    if(!_writeQueue.isEmpty()){
-                        ArrayList<Byte> wo = new ArrayList<Byte>();
-                        for(int i = 0;!_writeQueue.isEmpty();i++){
-                            byte b = _writeQueue.remove();
-                            _out.write(b);
-                        }
-                        _out.flush();
-                    }
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                    break;
+                ArrayList<Byte> arrayList = new ArrayList<Byte>();
+                for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
+                    arrayList.add(_readQueue.remove());
                 }
-                if(tmpBuf!=0){
-                    for(int i=0;i<buf.length;i++){
-                        _readQueue.add(buf[i]);
-                    }
-                }
+                Byte[] ret = new Byte[arrayList.size()];
+                arrayList.toArray(ret);
+                return ret;
             }
+            Byte [] data = new Byte[128];
+            return data;
         }
     }
-
-
-    private void callbackConnect(){
-        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"");
-    }
-
 
     private static BtSocketLib _library = new BtSocketLib();
 
     private String searchCallBackGameObject;
     private String searchDelegateMethod;
 
-    private String pairingCallbackGameObject;
-    private String pairingDelegateMethod;
-
     private String connectCallbackGameObject;
     private String connectDelegateMethod;
 
     private BtSocketLib(){
-        mCandidateServers = new ArrayList();
     }
 
     public static void startServer(String gameObjectName,String delegateMethod)
@@ -339,15 +141,6 @@ public class BtSocketLib {
         _library.onStartServer();
     }
 
-    public static void activeBluetooth() {
-        _library.onActiveBluetooth();
-    }
-
-    public static void pairingBluetooth(String gameObjectName,String delegateMethod) {
-        _library.pairingCallbackGameObject = gameObjectName;
-        _library.pairingDelegateMethod = delegateMethod;
-        _library.onPairingBluetooth();
-    }
 
     public static void searchDevice(String gameObjectName,String delegateMethod) {
         Log.w("searchDevice","****search****");
@@ -356,20 +149,20 @@ public class BtSocketLib {
         _library.onSearchDevice();
     }
 
+
     //接続
     public static void connect(String address,String gameObjectName,String delegateMethod)
     {
         _library.connectCallbackGameObject = gameObjectName;
         _library.connectDelegateMethod = delegateMethod;
-        _library.onConnect(address);
     }
 
     public static void sendData(String sendedData){
-        _library.mReadWriteThread.write(sendedData.getBytes());
+        _library.mReadWriteModel.write(sendedData.getBytes());
     }
 
     public static int IsConnected(){
-        if(_library.mSocket.isConnected()){
+        if(_library.isConnect){
             return 1;
         }else{
             return 0;
