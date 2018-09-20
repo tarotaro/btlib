@@ -18,18 +18,20 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.EventListener;
 import java.util.LinkedList;
 import java.util.Queue;
 
 
 
-public class BtSocketLib implements BLEServer.ServerConnectInterface {
+public class BtSocketLib implements ConnectInterface {
 //SingletonBtSocketLib
 
     public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
 
     private Advertise mAdvertise;
+    private Scan mScan;
     private final Activity activity = UnityPlayer.currentActivity;
     private boolean isConnect = false;
     private ReadWriteModel mReadWriteModel;
@@ -39,6 +41,9 @@ public class BtSocketLib implements BLEServer.ServerConnectInterface {
      * デバイスをSearchさせる
      */
     private void onSearchDevice() {
+        mScan = new Scan();
+        mScan.getBLEClient().connectInterface = this;
+        mScan.startScan(activity.getApplicationContext());
 
     }
 
@@ -173,4 +178,9 @@ public class BtSocketLib implements BLEServer.ServerConnectInterface {
         _library.onCancel();
     }
 
+}
+
+interface ConnectInterface extends EventListener {
+    public void onConnect();
+    public void disConnect();
 }

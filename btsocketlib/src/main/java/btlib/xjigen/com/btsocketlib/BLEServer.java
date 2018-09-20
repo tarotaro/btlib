@@ -17,7 +17,7 @@ public class BLEServer extends BluetoothGattServerCallback {
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
     private boolean _isQueueReaded;
-    public ServerConnectInterface connectInterface;
+    public ConnectInterface connectInterface;
     //BLE
     private BluetoothGattServer bluetoothGattServer;
     public BLEServer(BluetoothGattServer gattServer) {
@@ -96,10 +96,5 @@ public class BLEServer extends BluetoothGattServerCallback {
             _readQueue.add(value[i]);
         }
         bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
-    }
-
-    public interface ServerConnectInterface extends EventListener {
-        public void onConnect();
-        public void disConnect();
     }
 }
