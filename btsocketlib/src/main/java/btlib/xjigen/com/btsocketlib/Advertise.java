@@ -32,14 +32,14 @@ public class Advertise extends AdvertiseCallback {
 
     //アドバタイズを開始
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    public void startAdvertise(Context context) {
+    public void startAdvertise(Context context,ConnectInterface _connectInterface) {
 
         //BLE各種を取得
         BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         BluetoothAdapter adapter = manager.getAdapter();
         advertiser = getAdvertiser(adapter);
+        server = new BLEServer(gattServer,_connectInterface);
         gattServer = getGattServer(context, manager);
-
 
         //UUIDを設定
         setUuid();
@@ -79,7 +79,7 @@ public class Advertise extends AdvertiseCallback {
     //GattServerを取得
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     private BluetoothGattServer getGattServer(Context context, BluetoothManager manager) {
-        server = new BLEServer(gattServer);
+
         return manager.openGattServer(context,server);
     }
 

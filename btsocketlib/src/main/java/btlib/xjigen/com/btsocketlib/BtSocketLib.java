@@ -1,17 +1,12 @@
 package btlib.xjigen.com.btsocketlib;
 
 import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
+
+import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothServerSocket;
-import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.support.annotation.NonNull;
 import android.util.Log;
 import com.unity3d.player.UnityPlayer;
+
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -33,9 +28,26 @@ public class BtSocketLib implements ConnectInterface {
     private Advertise mAdvertise;
     private Scan mScan;
     private final Activity activity = UnityPlayer.currentActivity;
-    private boolean isConnect = false;
+    private ConnectState connectState = ConnectState.DisConnect;
     private ReadWriteModel mReadWriteModel;
+    private ArrayList<BluetoothDevice> devices;
 
+    public enum ConnectState {
+        DisConnect(0),
+        Connected(1),
+        Connecting(2),
+        Failed(3)
+        ;
+
+        private final int state;
+        private ConnectState(final int _state){
+            this.state = _state;
+        }
+
+        public int getState(){
+            return this.state;
+        }
+    }
 
     /**
      * デバイスをSearchさせる
@@ -44,38 +56,17 @@ public class BtSocketLib implements ConnectInterface {
         mScan = new Scan();
         mScan.getBLEClient().connectInterface = this;
         mScan.startScan(activity.getApplicationContext());
-
     }
 
-    private void callBackEndSearch(BluetoothDevice ret[]){
-        JSONObject object = new JSONObject();
-        JSONArray deviceArray = new JSONArray();
-
-        try {
-            for (BluetoothDevice dev : ret) {
-                JSONObject device = new JSONObject();
-                /*String devName = dev.getName();
-                if(devName == null){
-                    devName = "NoName";
-                }
-                device.put("device",devName);
-                device.put("address", dev.getAddress());
-                deviceArray.put(device);*/
-            }
-            object.put("devices",deviceArray);
-        }catch (JSONException exp){
-        }
-
-        UnityPlayer.UnitySendMessage(searchCallBackGameObject,searchDelegateMethod,object.toString());
+    @Override
+    public void callBackSearch(ArrayList<BluetoothDevice> ret){
+            devices = ret;
     }
-
-
 
     private void onStartServer() {
         mReadWriteModel = new ReadWriteModel();
         mAdvertise = new Advertise();
-        mAdvertise.startAdvertise(activity.getApplicationContext());
-        mAdvertise.getBLEServer().connectInterface = this;
+        mAdvertise.startAdvertise(activity.getApplicationContext(),this);
     }
 
     private void onCancel() {
@@ -86,12 +77,12 @@ public class BtSocketLib implements ConnectInterface {
 
     @Override
     public void onConnect() {
-        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"connect");
+        connectState = ConnectState.Connected;
     }
 
     @Override
     public void disConnect() {
-        UnityPlayer.UnitySendMessage(connectCallbackGameObject,connectDelegateMethod,"disconnect");
+        connectState = ConnectState.DisConnect;
     }
 
 
@@ -130,57 +121,94 @@ public class BtSocketLib implements ConnectInterface {
 
     private static BtSocketLib _library = new BtSocketLib();
 
-    private String searchCallBackGameObject;
-    private String searchDelegateMethod;
-
-    private String connectCallbackGameObject;
-    private String connectDelegateMethod;
-
     private BtSocketLib(){
     }
 
-    public static void startServer(String gameObjectName,String delegateMethod)
+    public static void startServer()
     {
-        _library.connectCallbackGameObject = gameObjectName;
-        _library.connectDelegateMethod = delegateMethod;
         _library.onStartServer();
     }
 
 
-    public static void searchDevice(String gameObjectName,String delegateMethod) {
-        Log.w("searchDevice","****search****");
-        _library.searchCallBackGameObject = gameObjectName;
-        _library.searchDelegateMethod = delegateMethod;
+    public static void searchDevice() {
         _library.onSearchDevice();
     }
 
+    public static String GetBluetoothIDList(){
+        JSONObject object = new JSONObject();
+        JSONArray deviceArray = new JSONArray();
+        ArrayList<BluetoothDevice> devices =  new ArrayList<BluetoothDevice>();
+        if(_library.devices == null || _library.devices.size() == 0){
+            try {
+                object.put("devices", deviceArray);
+                return object.toString();
+            }catch (JSONException ex){
+                return "";
+            }
+        }
+        devices.addAll(_library.devices);
+        try {
+            for (BluetoothDevice dev : devices) {
+                JSONObject device = new JSONObject();
+                String devName = dev.getName();
+                if (devName == null) {
+                    devName = "NoName";
+                }
+                device.put("device", devName);
+                device.put("address", dev.getAddress());
+                deviceArray.put(device);
+            }
+            object.put("devices", deviceArray);
+        } catch (JSONException exp) {
+        }
+
+
+        return object.toString();
+    }
 
     //接続
-    public static void connect(String address,String gameObjectName,String delegateMethod)
+    public static void connectById(String address)
     {
-        _library.connectCallbackGameObject = gameObjectName;
-        _library.connectDelegateMethod = delegateMethod;
+        _library.connectState = ConnectState.Connecting;
+        if ( _library.devices == null){
+            _library.connectState = ConnectState.Failed;
+            return;
+        }
+        boolean isFound = false;
+        int index = 0;
+        for (BluetoothDevice dev : _library.devices){
+            if (dev.getAddress().equals(address)){
+                isFound = true;
+                _library.mScan.connect(index);
+                break;
+            }
+            index++;
+        }
+        if(!isFound){
+            _library.connectState = ConnectState.Failed;
+        }
+    }
+
+    public static void connectByListIndex(int index) {
+        if(_library.devices.size()<index){
+            _library.connectState = ConnectState.Failed;
+        }
+        _library.mScan.connect(index);
     }
 
     public static void sendData(String sendedData){
         _library.mReadWriteModel.write(sendedData.getBytes());
     }
 
-    public static int IsConnected(){
-        if(_library.isConnect){
-            return 1;
-        }else{
-            return 0;
-        }
+    public static int getConnectState(){
+        return _library.connectState.getState();
     }
 
-    public static void cancel(){
-        _library.onCancel();
-    }
 
 }
 
 interface ConnectInterface extends EventListener {
     public void onConnect();
     public void disConnect();
+    public void callBackSearch(ArrayList<BluetoothDevice> devices);
 }

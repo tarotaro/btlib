@@ -13,6 +13,7 @@ import android.content.Context;
 import android.os.Build;
 import android.support.annotation.RequiresApi;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 
 import static android.bluetooth.le.ScanSettings.*;
@@ -20,19 +21,28 @@ import static android.bluetooth.le.ScanSettings.*;
 @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
 public class Scan extends ScanCallback {
 
-    ArrayList<BluetoothDevice> devices;
+    private ArrayList<BluetoothDevice> devices;
     private Context _context;
     private BLEClient client;
-    public void connect(int index) {
+    BluetoothManager manager;
+    BluetoothAdapter adapter;
+    BluetoothLeScanner scanner;
+
+    public Scan(){
         client = new BLEClient();
+    }
+
+    public void connect(int index) {
+        scanner.stopScan(this);
         devices.get(index).connectGatt(_context, false, client);
     }
+
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void startScan(Context context) {
         _context = context;
-        BluetoothManager manager = (BluetoothManager) _context.getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter adapter = manager.getAdapter();
-        BluetoothLeScanner scanner = adapter.getBluetoothLeScanner();
+        manager = (BluetoothManager) _context.getSystemService(Context.BLUETOOTH_SERVICE);
+        adapter = manager.getAdapter();
+        scanner = adapter.getBluetoothLeScanner();
         ScanSettings settings = makeScanSettings();
         devices = new ArrayList<BluetoothDevice>();
         scanner.startScan(null,settings,this);
@@ -50,9 +60,14 @@ public class Scan extends ScanCallback {
         scanSettingBuiler.setScanMode(SCAN_MODE_LOW_LATENCY);
         return scanSettingBuiler.build();
     }
+
+
     @Override
     public void onScanResult(int callbackType, ScanResult result) {
-        devices.add(result.getDevice());
+        if(!devices.contains(result.getDevice())) {
+            devices.add(result.getDevice());
+        }
+        client.connectInterface.callBackSearch(devices);
     }
 
     @Override

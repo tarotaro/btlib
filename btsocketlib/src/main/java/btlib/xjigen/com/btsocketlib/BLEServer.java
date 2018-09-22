@@ -20,7 +20,8 @@ public class BLEServer extends BluetoothGattServerCallback {
     public ConnectInterface connectInterface;
     //BLE
     private BluetoothGattServer bluetoothGattServer;
-    public BLEServer(BluetoothGattServer gattServer) {
+    public BLEServer(BluetoothGattServer gattServer,ConnectInterface _connectInterface) {
+        connectInterface = _connectInterface;
         this.bluetoothGattServer = gattServer;
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
