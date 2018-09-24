@@ -7,14 +7,17 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.Build;
+import android.os.ParcelUuid;
 import android.support.annotation.RequiresApi;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
+import java.util.UUID;
 
 import static android.bluetooth.le.ScanSettings.*;
 
@@ -45,7 +48,10 @@ public class Scan extends ScanCallback {
         scanner = adapter.getBluetoothLeScanner();
         ScanSettings settings = makeScanSettings();
         devices = new ArrayList<BluetoothDevice>();
-        scanner.startScan(null,settings,this);
+        ScanFilter scanFilter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))).build();
+        ArrayList scanFilterList = new ArrayList();
+        scanFilterList.add(scanFilter);
+        scanner.startScan(scanFilterList,settings,this);
 
     }
 

@@ -46,6 +46,7 @@ public class Advertise extends AdvertiseCallback {
         server.setGattServer(gattServer);
 
 
+
         //UUIDを設定
         setUuid();
 
