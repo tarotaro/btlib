@@ -118,8 +118,9 @@ public class Advertise extends AdvertiseCallback {
                         BluetoothGattCharacteristic.PERMISSION_WRITE);
 
         BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
-                UUID.fromString(BtSocketLib.CHARACTERISTIC_CONFIG_UUID_YOU_CAN_CHANGE)
-                ,BluetoothGattDescriptor.PERMISSION_WRITE | BluetoothGattDescriptor.PERMISSION_READ);
+                UUID.fromString(BtSocketLib.CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE)
+                ,BluetoothGattDescriptor.PERMISSION_READ);
+
         characteristic.addDescriptor(dataDescriptor);
 
         //characteristicUUIDをserviceUUIDにのせる

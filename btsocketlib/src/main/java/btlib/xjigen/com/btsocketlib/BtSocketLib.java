@@ -24,7 +24,7 @@ public class BtSocketLib implements ConnectInterface {
 
     public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
-    public static final String CHARACTERISTIC_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
 
     private Advertise mAdvertise;
     private Scan mScan;
