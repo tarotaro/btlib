@@ -64,6 +64,7 @@ public class Scan extends ScanCallback {
 
     @Override
     public void onScanResult(int callbackType, ScanResult result) {
+        super.onScanResult(callbackType,result);
         if(!devices.contains(result.getDevice())) {
             devices.add(result.getDevice());
         }
@@ -72,7 +73,7 @@ public class Scan extends ScanCallback {
 
     @Override
     public void onScanFailed(int errorCode) {
-
+        super.onScanFailed(errorCode);
     }
 
 }

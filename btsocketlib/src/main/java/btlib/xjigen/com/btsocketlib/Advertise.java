@@ -1,6 +1,7 @@
 package btlib.xjigen.com.btsocketlib;
 
 import android.annotation.TargetApi;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.os.Build;
 import android.os.ParcelUuid;
 
@@ -29,6 +30,7 @@ public class Advertise extends AdvertiseCallback {
     private BluetoothLeAdvertiser advertiser;
     private BluetoothGattServer gattServer;
     private BLEServer server;
+    private ConnectInterface connectInterface;
 
     //アドバタイズを開始
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -38,14 +40,27 @@ public class Advertise extends AdvertiseCallback {
         BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         BluetoothAdapter adapter = manager.getAdapter();
         advertiser = getAdvertiser(adapter);
-        server = new BLEServer(gattServer,_connectInterface);
+        connectInterface = _connectInterface;
+        server = new BLEServer(connectInterface);
         gattServer = getGattServer(context, manager);
+        server.setGattServer(gattServer);
+
 
         //UUIDを設定
         setUuid();
 
         //アドバタイズを開始
         advertiser.startAdvertising(makeAdvertiseSetting(),makeAdvertiseData(),this);
+    }
+
+    @Override
+    public void onStartSuccess(AdvertiseSettings settingsInEffect) {
+        super.onStartSuccess(settingsInEffect);
+    }
+
+    @Override
+    public void onStartFailure(int errorCode) {
+        super.onStartFailure(errorCode);
     }
 
     public BLEServer getBLEServer(){
@@ -58,6 +73,7 @@ public class Advertise extends AdvertiseCallback {
 
         //サーバーを閉じる
         if (gattServer != null) {
+            gattServer.cancelConnection(server.getConnectedDevice());
             gattServer.clearServices();
             gattServer.close();
             gattServer = null;
@@ -67,6 +83,7 @@ public class Advertise extends AdvertiseCallback {
         if (advertiser != null) {
             advertiser.stopAdvertising(this);
             advertiser = null;
+
         }
     }
 
@@ -79,7 +96,6 @@ public class Advertise extends AdvertiseCallback {
     //GattServerを取得
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     private BluetoothGattServer getGattServer(Context context, BluetoothManager manager) {
-
         return manager.openGattServer(context,server);
     }
 
@@ -94,10 +110,17 @@ public class Advertise extends AdvertiseCallback {
         //characteristicUUIDを設定
         BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
                 UUID.fromString(BtSocketLib.CHAR_UUID_YOU_CAN_CHANGE),
+                BluetoothGattCharacteristic.PROPERTY_NOTIFY |
                 BluetoothGattCharacteristic.PROPERTY_READ |
                         BluetoothGattCharacteristic.PROPERTY_WRITE,
+                BluetoothGattDescriptor.PERMISSION_WRITE |
                 BluetoothGattCharacteristic.PERMISSION_READ |
                         BluetoothGattCharacteristic.PERMISSION_WRITE);
+
+        BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
+                UUID.fromString(BtSocketLib.CHARACTERISTIC_CONFIG_UUID_YOU_CAN_CHANGE)
+                ,BluetoothGattDescriptor.PERMISSION_WRITE | BluetoothGattDescriptor.PERMISSION_READ);
+        characteristic.addDescriptor(dataDescriptor);
 
         //characteristicUUIDをserviceUUIDにのせる
         service.addCharacteristic(characteristic);
@@ -113,11 +136,12 @@ public class Advertise extends AdvertiseCallback {
         AdvertiseSettings.Builder builder = new AdvertiseSettings.Builder();
 
         //アドバタイズモード
-        builder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY);
+        builder.setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED);
         //アドバタイズパワー
-        builder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_ULTRA_LOW);
+        builder.setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH);
         //ペリフェラルへの接続を許可する
         builder.setConnectable(CONNECTABLE);
+
         //調査中。。
         builder.setTimeout(TIMEOUT);
 
@@ -129,6 +153,7 @@ public class Advertise extends AdvertiseCallback {
     private AdvertiseData makeAdvertiseData() {
 
         AdvertiseData.Builder builder = new AdvertiseData.Builder();
+        builder.setIncludeTxPowerLevel(false);
         builder.addServiceUuid(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE)));
 
         return builder.build();

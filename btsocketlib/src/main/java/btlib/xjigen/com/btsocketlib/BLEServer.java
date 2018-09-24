@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothProfile;
 import android.os.Build;
 
 import java.util.EventListener;
@@ -17,15 +18,24 @@ public class BLEServer extends BluetoothGattServerCallback {
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
     private boolean _isQueueReaded;
+    private BluetoothDevice _connectedDevice;
     public ConnectInterface connectInterface;
     //BLE
     private BluetoothGattServer bluetoothGattServer;
-    public BLEServer(BluetoothGattServer gattServer,ConnectInterface _connectInterface) {
+    public BLEServer(ConnectInterface _connectInterface) {
         connectInterface = _connectInterface;
-        this.bluetoothGattServer = gattServer;
+
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
         _isQueueReaded = false;
+    }
+
+    public BluetoothDevice getConnectedDevice() {
+        return _connectedDevice;
+    }
+
+    public void setGattServer(BluetoothGattServer _gattServer){
+        bluetoothGattServer = _gattServer;
     }
 
     public  Queue<Byte> getReadQueue() {
@@ -40,17 +50,22 @@ public class BLEServer extends BluetoothGattServerCallback {
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
-    public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
+    @Override public void onConnectionStateChange(BluetoothDevice device, int status, int newState) {
+        super.onConnectionStateChange(device,status,newState);
         if(connectInterface == null) {
             return;
         }
-        if (newState == BluetoothGatt.STATE_CONNECTED) {
+        if (newState == BluetoothProfile.STATE_CONNECTED) {
+            _connectedDevice = device;
+            boolean isConnect = bluetoothGattServer.connect(device,false);
             connectInterface.onConnect();
-        } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-            connectInterface.disConnect();
+        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+            connectInterface.onDisConnect();
         }
 
     }
+
+
 
     //セントラル（クライアント）からReadRequestが来ると呼ばれる
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
@@ -98,4 +113,5 @@ public class BLEServer extends BluetoothGattServerCallback {
         }
         bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
     }
+
 }

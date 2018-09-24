@@ -24,6 +24,7 @@ public class BtSocketLib implements ConnectInterface {
 
     public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
+    public static final String CHARACTERISTIC_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
 
     private Advertise mAdvertise;
     private Scan mScan;
@@ -81,7 +82,7 @@ public class BtSocketLib implements ConnectInterface {
     }
 
     @Override
-    public void disConnect() {
+    public void onDisConnect() {
         connectState = ConnectState.DisConnect;
     }
 
@@ -204,11 +205,21 @@ public class BtSocketLib implements ConnectInterface {
         return _library.connectState.getState();
     }
 
+    public static void disConnect(){
+        if(_library.mScan != null){
+            _library.mScan.getBLEClient().disConnect();
+        }
+        if(_library.mAdvertise != null){
+            _library.mAdvertise.stopAdvertise();
+        }
+    }
+
+
 
 }
 
 interface ConnectInterface extends EventListener {
     public void onConnect();
-    public void disConnect();
+    public void onDisConnect();
     public void callBackSearch(ArrayList<BluetoothDevice> devices);
 }
