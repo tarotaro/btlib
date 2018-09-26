@@ -12,9 +12,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 
@@ -93,30 +95,30 @@ public class BtSocketLib implements ConnectInterface {
         public ReadWriteModel(){
         }
 
-        public void write(byte[] buf){
+        public void send(byte[] buf,int len){
             if(mAdvertise != null) {
                 _writeQueue = new LinkedList<Byte>();
-                for (int i = 0; i < buf.length; i++) {
+                for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
                 mAdvertise.getBLEServer().addWriteQueue(_writeQueue);
             }
         }
 
-        public Byte[] read(int length){
+        public boolean recv(byte[] buf, int length){
             if(mAdvertise != null) {
                 _readQueue = mAdvertise.getBLEServer().getReadQueue();
-
-                ArrayList<Byte> arrayList = new ArrayList<Byte>();
-                for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
-                    arrayList.add(_readQueue.remove());
+                if(_readQueue.size() < length){
+                    return false;
                 }
-                Byte[] ret = new Byte[arrayList.size()];
-                arrayList.toArray(ret);
-                return ret;
+
+                for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
+                    buf[i]=(_readQueue.remove());
+                }
+                return true;
             }
-            Byte [] data = new Byte[128];
-            return data;
+            return false;
+
         }
     }
 
@@ -197,8 +199,12 @@ public class BtSocketLib implements ConnectInterface {
         _library.mScan.connect(index);
     }
 
-    public static void sendData(String sendedData){
-        _library.mReadWriteModel.write(sendedData.getBytes());
+    public static void send(byte [] data,int len ){
+        _library.mReadWriteModel.send(data,len);
+    }
+
+    public static boolean recv(byte [] data,int len ){
+        return _library.mReadWriteModel.recv(data,len);
     }
 
     public static int getConnectState(){
