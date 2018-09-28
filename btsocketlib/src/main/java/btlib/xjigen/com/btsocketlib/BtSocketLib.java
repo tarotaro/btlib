@@ -67,7 +67,6 @@ public class BtSocketLib implements ConnectInterface {
     }
 
     private void onStartServer() {
-        mReadWriteModel = new ReadWriteModel();
         mAdvertise = new Advertise();
         mAdvertise.startAdvertise(activity.getApplicationContext(),this);
     }
@@ -80,6 +79,7 @@ public class BtSocketLib implements ConnectInterface {
 
     @Override
     public void onConnect() {
+        mReadWriteModel = new ReadWriteModel();
         connectState = ConnectState.Connected;
     }
 
@@ -96,7 +96,7 @@ public class BtSocketLib implements ConnectInterface {
         }
 
         public void send(byte[] buf,int len){
-            if(mAdvertise != null) {
+            if(mAdvertise != null && connectState == ConnectState.Connected) {
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
@@ -106,7 +106,7 @@ public class BtSocketLib implements ConnectInterface {
         }
 
         public boolean recv(byte[] buf, int length){
-            if(mAdvertise != null) {
+            if(mAdvertise != null && connectState == ConnectState.Connected) {
                 _readQueue = mAdvertise.getBLEServer().getReadQueue();
                 if(_readQueue.size() < length){
                     return false;
