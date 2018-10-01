@@ -109,23 +109,29 @@ public class Advertise extends AdvertiseCallback {
                 BluetoothGattService.SERVICE_TYPE_PRIMARY);
 
         //characteristicUUIDを設定
-        BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
-                UUID.fromString(BtSocketLib.CHAR_UUID_YOU_CAN_CHANGE),
-                BluetoothGattCharacteristic.PROPERTY_NOTIFY |
-                BluetoothGattCharacteristic.PROPERTY_READ |
+        BluetoothGattCharacteristic characteristicR = new BluetoothGattCharacteristic(
+                UUID.fromString(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE),
+                /*BluetoothGattCharacteristic.PROPERTY_NOTIFY |*/
+                BluetoothGattCharacteristic.PROPERTY_READ,
+                /*BluetoothGattDescriptor.PERMISSION_WRITE |*/
+                BluetoothGattCharacteristic.PERMISSION_READ);
+
+        BluetoothGattCharacteristic characteristicW = new BluetoothGattCharacteristic(
+                UUID.fromString(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE),
+                /*BluetoothGattCharacteristic.PROPERTY_NOTIFY |*/
                         BluetoothGattCharacteristic.PROPERTY_WRITE,
-                BluetoothGattDescriptor.PERMISSION_WRITE |
-                BluetoothGattCharacteristic.PERMISSION_READ |
+                /*BluetoothGattDescriptor.PERMISSION_WRITE |*/
                         BluetoothGattCharacteristic.PERMISSION_WRITE);
 
-        BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
+        /*BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
                 UUID.fromString(BtSocketLib.CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE)
-                ,BluetoothGattDescriptor.PERMISSION_READ);
+                ,BluetoothGattDescriptor.PERMISSION_READ);*/
 
-        characteristic.addDescriptor(dataDescriptor);
+        //characteristic.addDescriptor(dataDescriptor);
 
         //characteristicUUIDをserviceUUIDにのせる
-        service.addCharacteristic(characteristic);
+        service.addCharacteristic(characteristicR);
+        service.addCharacteristic(characteristicW);
 
         //serviceUUIDをサーバーにのせる
         gattServer.addService(service);

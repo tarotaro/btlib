@@ -3,13 +3,14 @@ package btlib.xjigen.com.btsocketlib;
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattServer;
 import android.bluetooth.BluetoothGattServerCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothProfile;
 import android.os.Build;
+import android.util.Log;
 
-import java.util.EventListener;
 import java.util.LinkedList;
 import java.util.Queue;
 
@@ -39,14 +40,13 @@ public class BLEServer extends BluetoothGattServerCallback {
     }
 
     public  Queue<Byte> getReadQueue() {
+        Log.w("xjigen","********get data*******");
         return this._readQueue;
     }
 
     public void addWriteQueue(Queue<Byte> writeQueue)
     {
-        synchronized (_writeQueue) {
-            this._writeQueue.addAll(writeQueue);
-        }
+        this._writeQueue.addAll(writeQueue);
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
@@ -64,7 +64,6 @@ public class BLEServer extends BluetoothGattServerCallback {
         }
 
     }
-
 
 
     //セントラル（クライアント）からReadRequestが来ると呼ばれる
@@ -85,17 +84,18 @@ public class BLEServer extends BluetoothGattServerCallback {
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
-                synchronized (_writeQueue) {
                     while (!_writeQueue.isEmpty()) {
                         byte[] wa = new byte[128];
                         for (int i = 0; i < 128 && !_writeQueue.isEmpty(); i++) {
                             wa[i] = _writeQueue.remove();
                         }
+                        Log.w("xjigen","********reading data*******");
                         ch.setValue(wa);
                         bluetoothGattServer.sendResponse(dev, reqId, BluetoothGatt.GATT_SUCCESS, offs,
                                 ch.getValue());
+                        Log.w("xjigen","********read data*******");
+                        break;
                     }
-                }
             }
         });
         thread.start();

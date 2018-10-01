@@ -25,7 +25,8 @@ public class BtSocketLib implements ConnectInterface {
 //SingletonBtSocketLib
 
     public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
-    public static final String CHAR_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_WRITE_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_READ_UUID_YOU_CAN_CHANGE = "0000F9EE-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
 
     private Advertise mAdvertise;
@@ -34,6 +35,7 @@ public class BtSocketLib implements ConnectInterface {
     private ConnectState connectState = ConnectState.DisConnect;
     private ReadWriteModel mReadWriteModel;
     private ArrayList<BluetoothDevice> devices;
+    private ConnectMode connectMode = ConnectMode.ServerMode;
 
     public enum ConnectState {
         DisConnect(0),
@@ -50,6 +52,11 @@ public class BtSocketLib implements ConnectInterface {
         public int getState(){
             return this.state;
         }
+    }
+
+    public enum ConnectMode {
+        ServerMode,
+        ClientMode
     }
 
     /**
@@ -86,6 +93,7 @@ public class BtSocketLib implements ConnectInterface {
     @Override
     public void onDisConnect() {
         connectState = ConnectState.DisConnect;
+        connectMode = ConnectMode.ServerMode;
     }
 
 
@@ -96,23 +104,43 @@ public class BtSocketLib implements ConnectInterface {
         }
 
         public void send(byte[] buf,int len){
-            if(mAdvertise != null && connectState == ConnectState.Connected) {
+            if(mAdvertise != null && connectState == ConnectState.Connected
+                    && connectMode == ConnectMode.ServerMode) {
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
                 mAdvertise.getBLEServer().addWriteQueue(_writeQueue);
+            }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
+                    && connectMode == ConnectMode.ClientMode){
+                _writeQueue = new LinkedList<Byte>();
+                for (int i = 0; i < len; i++) {
+                    _writeQueue.add(buf[i]);
+                }
+                mScan.getBLEClient().addWriteQueue(_writeQueue);
             }
         }
 
         public boolean recv(byte[] buf, int length){
-            if(mAdvertise != null && connectState == ConnectState.Connected) {
+            if(mAdvertise != null && connectState == ConnectState.Connected
+                    && connectMode == ConnectMode.ServerMode) {
                 _readQueue = mAdvertise.getBLEServer().getReadQueue();
                 if(_readQueue.size() < length){
                     return false;
                 }
-
+                Log.w("xjigen","********recv data*******");
                 for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
+                    buf[i]=(_readQueue.remove());
+                }
+                Log.w("xjigen","********recved data*******");
+                return true;
+            }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
+                    && connectMode == ConnectMode.ClientMode){
+                _readQueue = mScan.getBLEClient().getReadQueue();
+                if(_readQueue.size() < length){
+                    return false;
+                }
+                for (int i = 0; (i < length && _readQueue.isEmpty() != true); i++) {
                     buf[i]=(_readQueue.remove());
                 }
                 return true;
@@ -189,6 +217,8 @@ public class BtSocketLib implements ConnectInterface {
         }
         if(!isFound){
             _library.connectState = ConnectState.Failed;
+        }else{
+            _library.connectMode = ConnectMode.ClientMode;
         }
     }
 
@@ -196,6 +226,7 @@ public class BtSocketLib implements ConnectInterface {
         if(_library.devices.size()<index){
             _library.connectState = ConnectState.Failed;
         }
+        _library.connectMode = ConnectMode.ClientMode;
         _library.mScan.connect(index);
     }
 
