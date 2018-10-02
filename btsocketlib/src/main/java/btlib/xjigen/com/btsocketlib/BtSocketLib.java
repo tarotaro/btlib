@@ -106,43 +106,59 @@ public class BtSocketLib implements ConnectInterface {
         public void send(byte[] buf,int len){
             if(mAdvertise != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ServerMode) {
+                Log.w("xjigen","********send client data*******");
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
+
                 mAdvertise.getBLEServer().addWriteQueue(_writeQueue);
+                Log.w("xjigen","********sended client data*******");
             }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ClientMode){
+                Log.w("xjigen","********send client data*******");
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
                 mScan.getBLEClient().addWriteQueue(_writeQueue);
+                Log.w("xjigen","********sended client data*******");
             }
         }
 
         public boolean recv(byte[] buf, int length){
             if(mAdvertise != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ServerMode) {
-                _readQueue = mAdvertise.getBLEServer().getReadQueue();
+                _readQueue = mAdvertise.getBLEServer().getReadQueueLock();
                 if(_readQueue.size() < length){
                     return false;
                 }
-                Log.w("xjigen","********recv data*******");
-                for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
-                    buf[i]=(_readQueue.remove());
+                Log.w("xjigen","********recv server data*******");
+                try {
+                    for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
+                        buf[i] = (_readQueue.remove());
+                    }
+                }finally {
+                    mAdvertise.getBLEServer().readQueueUnlock();
                 }
-                Log.w("xjigen","********recved data*******");
+                Log.w("xjigen","********recved server data*******");
                 return true;
             }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ClientMode){
-                _readQueue = mScan.getBLEClient().getReadQueue();
-                if(_readQueue.size() < length){
-                    return false;
+                Log.w("xjigen","********recv client data*******");
+                _readQueue = mScan.getBLEClient().getReadQueueLock();
+                try {
+                    if (_readQueue.size() < length) {
+                        return false;
+                    }
+                    for (int i = 0; (i < length && _readQueue.isEmpty() != true); i++) {
+                        buf[i] = (_readQueue.remove());
+                    }
+                    Log.w("calced","recv:readQueSize:"+ _readQueue.size());
+                }finally {
+                    mScan.getBLEClient().readQueueUnlock();
                 }
-                for (int i = 0; (i < length && _readQueue.isEmpty() != true); i++) {
-                    buf[i]=(_readQueue.remove());
-                }
+                Log.w("xjigen","********recved client data*******");
                 return true;
             }
             return false;

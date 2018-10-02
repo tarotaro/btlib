@@ -13,12 +13,16 @@ import android.util.Log;
 
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
 public class BLEServer extends BluetoothGattServerCallback {
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
     private boolean _isQueueReaded;
+    private Lock rlock;
+    private Lock wlock;
     private BluetoothDevice _connectedDevice;
     public ConnectInterface connectInterface;
     //BLE
@@ -28,6 +32,9 @@ public class BLEServer extends BluetoothGattServerCallback {
 
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
+        Log.w("size","*******size*******:"+_writeQueue.size());
+        rlock = new ReentrantLock();
+        wlock = new ReentrantLock();
         _isQueueReaded = false;
     }
 
@@ -39,14 +46,24 @@ public class BLEServer extends BluetoothGattServerCallback {
         bluetoothGattServer = _gattServer;
     }
 
-    public  Queue<Byte> getReadQueue() {
+    public  Queue<Byte> getReadQueueLock() {
         Log.w("xjigen","********get data*******");
+        rlock.lock();
         return this._readQueue;
+    }
+
+    public void readQueueUnlock(){
+        rlock.unlock();
     }
 
     public void addWriteQueue(Queue<Byte> writeQueue)
     {
-        this._writeQueue.addAll(writeQueue);
+        wlock.lock();
+        try {
+            this._writeQueue.addAll(writeQueue);
+        }finally {
+            wlock.unlock();
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
@@ -69,36 +86,32 @@ public class BLEServer extends BluetoothGattServerCallback {
     //セントラル（クライアント）からReadRequestが来ると呼ばれる
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     public void onCharacteristicReadRequest(android.bluetooth.BluetoothDevice device, int requestId,
-                                            int offset, BluetoothGattCharacteristic characteristic) {
+                                            int offset, final BluetoothGattCharacteristic characteristic) {
 
         if(_writeQueue == null || _writeQueue.isEmpty()) {
             bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
             return;
         }
 
-        final BluetoothGattCharacteristic ch = characteristic;
-        final android.bluetooth.BluetoothDevice dev  = device;
-        final int offs = offset;
-        final int reqId = requestId;
+        String ch = characteristic.getUuid().toString();
+        if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
 
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                    while (!_writeQueue.isEmpty()) {
-                        byte[] wa = new byte[128];
-                        for (int i = 0; i < 128 && !_writeQueue.isEmpty(); i++) {
-                            wa[i] = _writeQueue.remove();
-                        }
-                        Log.w("xjigen","********reading data*******");
-                        ch.setValue(wa);
-                        bluetoothGattServer.sendResponse(dev, reqId, BluetoothGatt.GATT_SUCCESS, offs,
-                                ch.getValue());
-                        Log.w("xjigen","********read data*******");
-                        break;
-                    }
+            int size = _writeQueue.size();
+            byte[] wa = new byte[size];
+            wlock.lock();
+            try {
+                for (int i = 0; i < size; i++) {
+                    wa[i] = _writeQueue.remove();
+                }
+            } finally {
+                wlock.unlock();
             }
-        });
-        thread.start();
+            bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset,
+                    wa);
+        }else {
+            bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset,
+                    null);
+        }
 
     }
 
@@ -108,8 +121,17 @@ public class BLEServer extends BluetoothGattServerCallback {
                                              BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded,
                                              int offset, byte[] value) {
 
-        for(int i = 0;i<value.length;i++){
-            _readQueue.add(value[i]);
+        String ch = characteristic.getUuid().toString();
+        if(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+            rlock.lock();
+            try {
+                for (int i = 0; i < value.length; i++) {
+                    _readQueue.add(value[i]);
+                }
+            } finally {
+                rlock.unlock();
+            }
+
         }
         bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
     }
