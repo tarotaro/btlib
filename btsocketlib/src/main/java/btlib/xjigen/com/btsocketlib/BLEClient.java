@@ -26,6 +26,7 @@ public class BLEClient extends BluetoothGattCallback {
     private boolean isConnect = false;
     private boolean isReadReturn = true;
     private boolean isWriteReturn = true;
+    private boolean isMTUExtend = false;
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -33,9 +34,15 @@ public class BLEClient extends BluetoothGattCallback {
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             // ペリフェラルとの接続に成功した時点でサービスを検索する
             gatt.discoverServices();
+            if(gatt.requestMtu(512)){
+                isMTUExtend = true;
+            }else{
+                isMTUExtend = false;
+            }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             // ペリフェラルとの接続が切れた時点でオブジェクトを空にする
             if (connectedGatt != null) {
+                connectedGatt.disconnect();
                 connectedGatt.close();
                 connectedGatt = null;
             }
@@ -47,6 +54,7 @@ public class BLEClient extends BluetoothGattCallback {
 
     @Override
     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        super.onCharacteristicWrite(gatt,characteristic,status);
         Log.d("bluetooth", "onCharacteristicWrite: " + status);
         String ch = characteristic.getUuid().toString();
         if(status==BluetoothGatt.GATT_SUCCESS) {
@@ -59,6 +67,7 @@ public class BLEClient extends BluetoothGattCallback {
 
     @Override
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+        super.onCharacteristicRead(gatt,characteristic,status);
         String ch = characteristic.getUuid().toString();
         if(status==BluetoothGatt.GATT_SUCCESS){
                 if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
@@ -78,6 +87,7 @@ public class BLEClient extends BluetoothGattCallback {
                 }
         }
     }
+    
 
     private void initialWriteAndRead(){
         //characteristic を取得しておく
@@ -86,9 +96,10 @@ public class BLEClient extends BluetoothGattCallback {
         rlock = new ReentrantLock();
         wlock = new ReentrantLock();
         isConnect = true;
+
         inputCharacteristic = connectedGatt.
-              getService(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))
-              .getCharacteristic(UUID.fromString(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE));
+                getService(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))
+                .getCharacteristic(UUID.fromString(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE));
 
         outputCharacteristic = connectedGatt.
                 getService(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))
@@ -99,8 +110,12 @@ public class BLEClient extends BluetoothGattCallback {
             public void run() {
                 while (true) {
                     if(isReadReturn) {
-                        connectedGatt.readCharacteristic(outputCharacteristic);
-                        isReadReturn = false;
+
+                        if(connectedGatt.readCharacteristic(outputCharacteristic)) {
+                            isReadReturn = false;
+                        }else{
+                            isWriteReturn = true;
+                        }
                     }
                     if(isConnect != true){
                         break;
@@ -121,15 +136,27 @@ public class BLEClient extends BluetoothGattCallback {
                             wlock.lock();
                             try {
                                 for (int i = 0; i < size && i < 128; i++) {
-                                    wroteData[i] = _writeQueue.remove();
+                                    wroteData[i] = _writeQueue.peek();
                                 }
                             } finally {
                                 wlock.unlock();
                             }
-
+                            inputCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
                             inputCharacteristic.setValue(wroteData);
-                            connectedGatt.writeCharacteristic(inputCharacteristic);
-                            isWriteReturn = false;
+                            if(connectedGatt.writeCharacteristic(inputCharacteristic)) {
+                                isWriteReturn = false;
+                                wlock.lock();
+                                try {
+                                    for (int i = 0; i < size && i < 128; i++) {
+                                        _writeQueue.poll();
+                                    }
+                                } finally {
+                                    wlock.unlock();
+                                }
+
+                            }else{
+                                isWriteReturn = true;
+                            }
                         }
                     }
                     if(isConnect != true){

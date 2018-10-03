@@ -88,6 +88,7 @@ public class BtSocketLib implements ConnectInterface {
     public void onConnect() {
         mReadWriteModel = new ReadWriteModel();
         connectState = ConnectState.Connected;
+        mAdvertise.stopAdvertise();
     }
 
     @Override

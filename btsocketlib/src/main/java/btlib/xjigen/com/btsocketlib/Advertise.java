@@ -71,15 +71,6 @@ public class Advertise extends AdvertiseCallback {
     //アドバタイズを停止
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void stopAdvertise() {
-
-        //サーバーを閉じる
-        if (gattServer != null) {
-            gattServer.cancelConnection(server.getConnectedDevice());
-            gattServer.clearServices();
-            gattServer.close();
-            gattServer = null;
-        }
-
         //アドバタイズを停止
         if (advertiser != null) {
             advertiser.stopAdvertising(this);
@@ -113,21 +104,22 @@ public class Advertise extends AdvertiseCallback {
                 UUID.fromString(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE),
                 /*BluetoothGattCharacteristic.PROPERTY_NOTIFY |*/
                 BluetoothGattCharacteristic.PROPERTY_READ,
-                /*BluetoothGattDescriptor.PERMISSION_WRITE |*/
-                BluetoothGattCharacteristic.PERMISSION_READ);
+                BluetoothGattCharacteristic.PERMISSION_READ
+        );
 
         BluetoothGattCharacteristic characteristicW = new BluetoothGattCharacteristic(
                 UUID.fromString(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE),
                 /*BluetoothGattCharacteristic.PROPERTY_NOTIFY |*/
-                        BluetoothGattCharacteristic.PROPERTY_WRITE,
+                BluetoothGattCharacteristic.PROPERTY_WRITE,
                 /*BluetoothGattDescriptor.PERMISSION_WRITE |*/
-                        BluetoothGattCharacteristic.PERMISSION_WRITE);
+                BluetoothGattCharacteristic.PERMISSION_WRITE);
+
 
         /*BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
                 UUID.fromString(BtSocketLib.CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE)
-                ,BluetoothGattDescriptor.PERMISSION_READ);*/
+                ,BluetoothGattDescriptor.PERMISSION_WRITE);
 
-        //characteristic.addDescriptor(dataDescriptor);
+        characteristicW.addDescriptor(dataDescriptor);*/
 
         //characteristicUUIDをserviceUUIDにのせる
         service.addCharacteristic(characteristicR);

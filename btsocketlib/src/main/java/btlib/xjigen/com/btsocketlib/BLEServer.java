@@ -87,6 +87,7 @@ public class BLEServer extends BluetoothGattServerCallback {
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
     public void onCharacteristicReadRequest(android.bluetooth.BluetoothDevice device, int requestId,
                                             int offset, final BluetoothGattCharacteristic characteristic) {
+        super.onCharacteristicReadRequest(device,requestId,offset,characteristic);
 
         if(_writeQueue == null || _writeQueue.isEmpty()) {
             bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
@@ -120,6 +121,7 @@ public class BLEServer extends BluetoothGattServerCallback {
     public void onCharacteristicWriteRequest(android.bluetooth.BluetoothDevice device, int requestId,
                                              BluetoothGattCharacteristic characteristic, boolean preparedWrite, boolean responseNeeded,
                                              int offset, byte[] value) {
+        super.onCharacteristicWriteRequest(device,requestId,characteristic,preparedWrite,responseNeeded,offset,value);
 
         String ch = characteristic.getUuid().toString();
         if(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
@@ -133,7 +135,9 @@ public class BLEServer extends BluetoothGattServerCallback {
             }
 
         }
-        bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, null);
+        if(responseNeeded) {
+            bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
+        }
     }
 
 }
