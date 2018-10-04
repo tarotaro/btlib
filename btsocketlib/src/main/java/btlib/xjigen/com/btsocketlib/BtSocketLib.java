@@ -27,7 +27,8 @@ public class BtSocketLib implements ConnectInterface {
     public static final String SERVICE_UUID_YOU_CAN_CHANGE = "0000CA0C-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_WRITE_UUID_YOU_CAN_CHANGE = "0000F9EF-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_READ_UUID_YOU_CAN_CHANGE = "0000F9EE-0000-1000-8000-00805f9b34fb";
-    public static final String CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_DESKR_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
+    public static final String CHAR_DESKW_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA8-0000-1000-8000-00805f9b34fb";
 
     private Advertise mAdvertise;
     private Scan mScan;
@@ -131,11 +132,11 @@ public class BtSocketLib implements ConnectInterface {
             if(mAdvertise != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ServerMode) {
                 _readQueue = mAdvertise.getBLEServer().getReadQueueLock();
-                if(_readQueue.size() < length){
-                    return false;
-                }
                 Log.w("xjigen","********recv server data*******");
                 try {
+                    if(_readQueue.size() < length){
+                        return false;
+                    }
                     for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
                         buf[i] = (_readQueue.remove());
                     }

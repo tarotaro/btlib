@@ -3,6 +3,7 @@ package btlib.xjigen.com.btsocketlib;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.util.Log;
 
 import java.util.LinkedList;
@@ -72,7 +73,6 @@ public class BLEClient extends BluetoothGattCallback {
         if(status==BluetoothGatt.GATT_SUCCESS){
                 if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
                     byte[] rd = characteristic.getValue();
-                    Log.w("bluetooth_cl", "onCharacteristicRead: " + status);
                     if (rd != null && rd.length != 0) {
                         rlock.lock();
                         try {
@@ -84,10 +84,23 @@ public class BLEClient extends BluetoothGattCallback {
                             isReadReturn = true;
                         }
                     }
+
                 }
         }
     }
-    
+
+    /*@Override
+    public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+        super.onCharacteristicChanged(gatt,characteristic);
+        String ch = characteristic.getUuid().toString();
+        if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+            outputCharacteristic = characteristic;
+        }else if(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+            inputCharacteristic = characteristic;
+
+        }
+    }*/
+
 
     private void initialWriteAndRead(){
         //characteristic を取得しておく
@@ -97,13 +110,29 @@ public class BLEClient extends BluetoothGattCallback {
         wlock = new ReentrantLock();
         isConnect = true;
 
+
+
         inputCharacteristic = connectedGatt.
                 getService(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))
                 .getCharacteristic(UUID.fromString(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE));
 
+        /*BluetoothGattDescriptor inputdescriptor = inputCharacteristic.getDescriptor(
+                UUID.fromString(BtSocketLib.CHAR_DESKW_CONFIG_UUID_YOU_CAN_CHANGE));
+
+        //connectedGatt.setCharacteristicNotification(inputCharacteristic,true);
+        inputdescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        connectedGatt.writeDescriptor(inputdescriptor);*/
+
         outputCharacteristic = connectedGatt.
                 getService(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))
                 .getCharacteristic(UUID.fromString(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE));
+
+        /*BluetoothGattDescriptor outputdescriptor = outputCharacteristic.getDescriptor(
+                UUID.fromString(BtSocketLib.CHAR_DESKR_CONFIG_UUID_YOU_CAN_CHANGE));
+
+        connectedGatt.setCharacteristicNotification(outputCharacteristic,true);
+        outputdescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+        connectedGatt.writeDescriptor(outputdescriptor);*/
 
         readThread  = new Thread(new Runnable() {
             @Override
@@ -131,23 +160,24 @@ public class BLEClient extends BluetoothGattCallback {
                 while (true) {
                     if(isWriteReturn) {
                         if (_writeQueue != null && _writeQueue.size() != 0) {
-                            int size = _writeQueue.size() > 128 ? 128 : _writeQueue.size();
+                            int size = _writeQueue.size() > 16 ? 16 : _writeQueue.size();
                             byte[] wroteData = new byte[size];
                             wlock.lock();
                             try {
-                                for (int i = 0; i < size && i < 128; i++) {
+                                for (int i = 0; i < size ; i++) {
                                     wroteData[i] = _writeQueue.peek();
                                 }
                             } finally {
                                 wlock.unlock();
                             }
-                            inputCharacteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
+
+
                             inputCharacteristic.setValue(wroteData);
                             if(connectedGatt.writeCharacteristic(inputCharacteristic)) {
                                 isWriteReturn = false;
                                 wlock.lock();
                                 try {
-                                    for (int i = 0; i < size && i < 128; i++) {
+                                    for (int i = 0; i < size; i++) {
                                         _writeQueue.poll();
                                     }
                                 } finally {

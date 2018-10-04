@@ -97,7 +97,7 @@ public class BLEServer extends BluetoothGattServerCallback {
         String ch = characteristic.getUuid().toString();
         if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
 
-            int size = _writeQueue.size();
+            int size = _writeQueue.size() > 16 ? 16 : _writeQueue.size();
             byte[] wa = new byte[size];
             wlock.lock();
             try {
@@ -138,6 +138,26 @@ public class BLEServer extends BluetoothGattServerCallback {
         if(responseNeeded) {
             bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset, value);
         }
+    }
+
+    @Override
+    public void onDescriptorWriteRequest(BluetoothDevice device, int requestId
+            , BluetoothGattDescriptor descriptor, boolean preparedWrite
+            , boolean responseNeeded, int offset, byte[] value) {
+        // ここに処理を記述. 接続後1回しか呼ばれない.
+        super.onDescriptorWriteRequest(device,requestId,descriptor,preparedWrite,responseNeeded,offset,value);
+
+        if(responseNeeded){
+            bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, value);
+        }
+    }
+
+    @Override
+    public void onDescriptorReadRequest(BluetoothDevice device, int requestId,
+            int offset, BluetoothGattDescriptor descriptor)
+            {
+        // ここに処理を記述. 接続後1回しか呼ばれない.
+        super.onDescriptorReadRequest(device,requestId,offset,descriptor);
     }
 
 }

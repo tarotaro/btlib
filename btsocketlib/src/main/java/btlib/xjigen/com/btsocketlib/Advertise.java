@@ -39,7 +39,7 @@ public class Advertise extends AdvertiseCallback {
         //BLE各種を取得
         BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
         BluetoothAdapter adapter = manager.getAdapter();
-        advertiser = getAdvertiser(adapter);
+        advertiser = adapter.getBluetoothLeAdvertiser();
         connectInterface = _connectInterface;
         server = new BLEServer(connectInterface);
         gattServer = getGattServer(context, manager);
@@ -115,11 +115,16 @@ public class Advertise extends AdvertiseCallback {
                 BluetoothGattCharacteristic.PERMISSION_WRITE);
 
 
-        /*BluetoothGattDescriptor dataDescriptor = new BluetoothGattDescriptor(
-                UUID.fromString(BtSocketLib.CHAR_DESK_CONFIG_UUID_YOU_CAN_CHANGE)
+        BluetoothGattDescriptor wdataDescriptor = new BluetoothGattDescriptor(
+                UUID.fromString(BtSocketLib.CHAR_DESKW_CONFIG_UUID_YOU_CAN_CHANGE)
                 ,BluetoothGattDescriptor.PERMISSION_WRITE);
 
-        characteristicW.addDescriptor(dataDescriptor);*/
+        BluetoothGattDescriptor rdataDescriptor = new BluetoothGattDescriptor(
+                UUID.fromString(BtSocketLib.CHAR_DESKR_CONFIG_UUID_YOU_CAN_CHANGE)
+                ,BluetoothGattDescriptor.PERMISSION_WRITE);
+
+        characteristicW.addDescriptor(wdataDescriptor);
+        characteristicR.addDescriptor(rdataDescriptor);
 
         //characteristicUUIDをserviceUUIDにのせる
         service.addCharacteristic(characteristicR);
