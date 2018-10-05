@@ -21,8 +21,8 @@ public class BLEServer extends BluetoothGattServerCallback {
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
     private boolean _isQueueReaded;
-    private Lock rlock;
-    private Lock wlock;
+    //private Lock rlock;
+    //private Lock wlock;
     private BluetoothDevice _connectedDevice;
     public ConnectInterface connectInterface;
     //BLE
@@ -32,9 +32,8 @@ public class BLEServer extends BluetoothGattServerCallback {
 
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
-        Log.w("size","*******size*******:"+_writeQueue.size());
-        rlock = new ReentrantLock();
-        wlock = new ReentrantLock();
+        //rlock = new ReentrantLock();
+        //wlock = new ReentrantLock();
         _isQueueReaded = false;
     }
 
@@ -47,22 +46,21 @@ public class BLEServer extends BluetoothGattServerCallback {
     }
 
     public  Queue<Byte> getReadQueueLock() {
-        Log.w("xjigen","********get data*******");
-        rlock.lock();
+        //rlock.lock();
         return this._readQueue;
     }
 
     public void readQueueUnlock(){
-        rlock.unlock();
+        //rlock.unlock();
     }
 
     public void addWriteQueue(Queue<Byte> writeQueue)
     {
-        wlock.lock();
+        //wlock.lock();
         try {
             this._writeQueue.addAll(writeQueue);
         }finally {
-            wlock.unlock();
+            //wlock.unlock();
         }
     }
 
@@ -97,15 +95,15 @@ public class BLEServer extends BluetoothGattServerCallback {
         String ch = characteristic.getUuid().toString();
         if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
 
-            int size = _writeQueue.size() > 16 ? 16 : _writeQueue.size();
+            int size = _writeQueue.size() > BtSocketLib.SEND_DATA_SIZE_MAX ? BtSocketLib.SEND_DATA_SIZE_MAX : _writeQueue.size();
             byte[] wa = new byte[size];
-            wlock.lock();
+            //wlock.lock();
             try {
                 for (int i = 0; i < size; i++) {
                     wa[i] = _writeQueue.remove();
                 }
             } finally {
-                wlock.unlock();
+                //wlock.unlock();
             }
             bluetoothGattServer.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, offset,
                     wa);
@@ -125,13 +123,13 @@ public class BLEServer extends BluetoothGattServerCallback {
 
         String ch = characteristic.getUuid().toString();
         if(BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
-            rlock.lock();
+            //rlock.lock();
             try {
                 for (int i = 0; i < value.length; i++) {
                     _readQueue.add(value[i]);
                 }
             } finally {
-                rlock.unlock();
+                //rlock.unlock();
             }
 
         }

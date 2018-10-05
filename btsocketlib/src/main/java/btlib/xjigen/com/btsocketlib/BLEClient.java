@@ -22,8 +22,8 @@ public class BLEClient extends BluetoothGattCallback {
     private BluetoothGattCharacteristic outputCharacteristic;
     private Thread readThread;
     private Thread writeThread;
-    private Lock rlock;
-    private Lock wlock;
+    //private Lock rlock;
+    //private Lock wlock;
     private boolean isConnect = false;
     private boolean isReadReturn = true;
     private boolean isWriteReturn = true;
@@ -56,7 +56,7 @@ public class BLEClient extends BluetoothGattCallback {
     @Override
     public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicWrite(gatt,characteristic,status);
-        Log.d("bluetooth", "onCharacteristicWrite: " + status);
+        //Log.d("bluetooth", "onCharacteristicWrite: " + status);
         String ch = characteristic.getUuid().toString();
         if(status==BluetoothGatt.GATT_SUCCESS) {
             if (BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
@@ -74,13 +74,13 @@ public class BLEClient extends BluetoothGattCallback {
                 if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
                     byte[] rd = characteristic.getValue();
                     if (rd != null && rd.length != 0) {
-                        rlock.lock();
+                        //rlock.lock();
                         try {
                             for (int i = 0; i < rd.length; i++) {
                                 _readQueue.add(rd[i]);
                             }
                         } finally {
-                            rlock.unlock();
+                            //rlock.unlock();
                             isReadReturn = true;
                         }
                     }
@@ -106,8 +106,8 @@ public class BLEClient extends BluetoothGattCallback {
         //characteristic を取得しておく
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
-        rlock = new ReentrantLock();
-        wlock = new ReentrantLock();
+        //rlock = new ReentrantLock();
+        //wlock = new ReentrantLock();
         isConnect = true;
 
 
@@ -138,6 +138,11 @@ public class BLEClient extends BluetoothGattCallback {
             @Override
             public void run() {
                 while (true) {
+                    try {
+                        Thread.sleep(17);
+                    }catch (Exception e){
+
+                    }
                     if(isReadReturn) {
 
                         if(connectedGatt.readCharacteristic(outputCharacteristic)) {
@@ -158,30 +163,35 @@ public class BLEClient extends BluetoothGattCallback {
             @Override
             public void run() {
                 while (true) {
+                    try {
+                        Thread.sleep(17);
+                    }catch (Exception e){
+
+                    }
                     if(isWriteReturn) {
                         if (_writeQueue != null && _writeQueue.size() != 0) {
-                            int size = _writeQueue.size() > 16 ? 16 : _writeQueue.size();
+                            int size = _writeQueue.size() > BtSocketLib.SEND_DATA_SIZE_MAX ? BtSocketLib.SEND_DATA_SIZE_MAX : _writeQueue.size();
                             byte[] wroteData = new byte[size];
-                            wlock.lock();
+                            //wlock.lock();
                             try {
                                 for (int i = 0; i < size ; i++) {
                                     wroteData[i] = _writeQueue.peek();
                                 }
                             } finally {
-                                wlock.unlock();
+                                //wlock.unlock();
                             }
 
 
                             inputCharacteristic.setValue(wroteData);
                             if(connectedGatt.writeCharacteristic(inputCharacteristic)) {
                                 isWriteReturn = false;
-                                wlock.lock();
+                                //wlock.lock();
                                 try {
                                     for (int i = 0; i < size; i++) {
                                         _writeQueue.poll();
                                     }
                                 } finally {
-                                    wlock.unlock();
+                                    //wlock.unlock();
                                 }
 
                             }else{
@@ -202,22 +212,21 @@ public class BLEClient extends BluetoothGattCallback {
 
 
     public  Queue<Byte> getReadQueueLock() {
-        rlock.lock();
+        //rlock.lock();
         return _readQueue;
     }
 
     public void readQueueUnlock(){
-        Log.w("calced","added:readQueSize:"+ _readQueue.size());
-        rlock.unlock();
+        //rlock.unlock();
     }
 
     public void addWriteQueue(Queue<Byte> writeQueue)
     {
-        wlock.lock();
+        //wlock.lock();
         try {
             this._writeQueue.addAll(writeQueue);
         }finally {
-            wlock.unlock();
+            //wlock.unlock();
         }
     }
 

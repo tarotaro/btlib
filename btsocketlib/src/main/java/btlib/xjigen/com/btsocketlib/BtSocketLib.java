@@ -13,6 +13,8 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.lang.reflect.Array;
+
+import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.LinkedList;
@@ -29,6 +31,9 @@ public class BtSocketLib implements ConnectInterface {
     public static final String CHAR_READ_UUID_YOU_CAN_CHANGE = "0000F9EE-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_DESKR_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_DESKW_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA8-0000-1000-8000-00805f9b34fb";
+    public static final int    SEND_DATA_SIZE_MAX = 20;
+
+
 
     private Advertise mAdvertise;
     private Scan mScan;
@@ -89,7 +94,9 @@ public class BtSocketLib implements ConnectInterface {
     public void onConnect() {
         mReadWriteModel = new ReadWriteModel();
         connectState = ConnectState.Connected;
-        mAdvertise.stopAdvertise();
+        if(connectMode == ConnectMode.ServerMode && mAdvertise != null) {
+            mAdvertise.stopAdvertise();
+        }
     }
 
     @Override
@@ -108,34 +115,35 @@ public class BtSocketLib implements ConnectInterface {
         public void send(byte[] buf,int len){
             if(mAdvertise != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ServerMode) {
-                Log.w("xjigen","********send client data*******");
+
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
 
                 mAdvertise.getBLEServer().addWriteQueue(_writeQueue);
-                Log.w("xjigen","********sended client data*******");
+
             }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ClientMode){
-                Log.w("xjigen","********send client data*******");
+
                 _writeQueue = new LinkedList<Byte>();
                 for (int i = 0; i < len; i++) {
                     _writeQueue.add(buf[i]);
                 }
                 mScan.getBLEClient().addWriteQueue(_writeQueue);
-                Log.w("xjigen","********sended client data*******");
+
             }
         }
 
-        public boolean recv(byte[] buf, int length){
+        public byte[] recv(int length){
+            byte [] buf = new byte[length];
             if(mAdvertise != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ServerMode) {
                 _readQueue = mAdvertise.getBLEServer().getReadQueueLock();
-                Log.w("xjigen","********recv server data*******");
+
                 try {
                     if(_readQueue.size() < length){
-                        return false;
+                        return null;
                     }
                     for (int i = 0; i < length && !_readQueue.isEmpty(); i++) {
                         buf[i] = (_readQueue.remove());
@@ -143,27 +151,27 @@ public class BtSocketLib implements ConnectInterface {
                 }finally {
                     mAdvertise.getBLEServer().readQueueUnlock();
                 }
-                Log.w("xjigen","********recved server data*******");
-                return true;
+
+                return buf;
             }else if(mScan != null && mScan.getBLEClient() != null && connectState == ConnectState.Connected
                     && connectMode == ConnectMode.ClientMode){
-                Log.w("xjigen","********recv client data*******");
+
                 _readQueue = mScan.getBLEClient().getReadQueueLock();
                 try {
                     if (_readQueue.size() < length) {
-                        return false;
+                        return null;
                     }
                     for (int i = 0; (i < length && _readQueue.isEmpty() != true); i++) {
                         buf[i] = (_readQueue.remove());
                     }
-                    Log.w("calced","recv:readQueSize:"+ _readQueue.size());
+
                 }finally {
                     mScan.getBLEClient().readQueueUnlock();
                 }
-                Log.w("xjigen","********recved client data*******");
-                return true;
+
+                return buf;
             }
-            return false;
+            return null;
 
         }
     }
@@ -252,8 +260,8 @@ public class BtSocketLib implements ConnectInterface {
         _library.mReadWriteModel.send(data,len);
     }
 
-    public static boolean recv(byte [] data,int len ){
-        return _library.mReadWriteModel.recv(data,len);
+    public static byte[] recv(int len ){
+        return _library.mReadWriteModel.recv(len);
     }
 
     public static int getConnectState(){
