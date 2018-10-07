@@ -21,6 +21,7 @@ public class BLEServer extends BluetoothGattServerCallback {
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
     private boolean _isQueueReaded;
+    private int _mtuSize = 20;
     //private Lock rlock;
     //private Lock wlock;
     private BluetoothDevice _connectedDevice;
@@ -80,6 +81,10 @@ public class BLEServer extends BluetoothGattServerCallback {
 
     }
 
+    public void onMtuChanged(BluetoothDevice device, int mtu){
+        _mtuSize = mtu;
+    }
+
 
     //セントラル（クライアント）からReadRequestが来ると呼ばれる
     @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
@@ -94,8 +99,7 @@ public class BLEServer extends BluetoothGattServerCallback {
 
         String ch = characteristic.getUuid().toString();
         if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
-
-            int size = _writeQueue.size() > BtSocketLib.SEND_DATA_SIZE_MAX ? BtSocketLib.SEND_DATA_SIZE_MAX : _writeQueue.size();
+            int size = _writeQueue.size() > _mtuSize/2 ? _mtuSize/2 : _writeQueue.size();
             byte[] wa = new byte[size];
             //wlock.lock();
             try {

@@ -18,6 +18,7 @@ public class BLEClient extends BluetoothGattCallback {
     public ConnectInterface connectInterface;
     private Queue<Byte> _readQueue;
     private Queue<Byte> _writeQueue;
+    private Queue<Byte> _requestMode;
     private BluetoothGattCharacteristic inputCharacteristic;
     private BluetoothGattCharacteristic outputCharacteristic;
     private Thread readThread;
@@ -27,7 +28,9 @@ public class BLEClient extends BluetoothGattCallback {
     private boolean isConnect = false;
     private boolean isReadReturn = true;
     private boolean isWriteReturn = true;
-    private boolean isMTUExtend = false;
+    private int isReadMTUExtend = 0;
+    private int isWriteMTUExtend = 0;
+    private int valueMTU = 512;
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -35,11 +38,6 @@ public class BLEClient extends BluetoothGattCallback {
         if (newState == BluetoothGatt.STATE_CONNECTED) {
             // ペリフェラルとの接続に成功した時点でサービスを検索する
             gatt.discoverServices();
-            if(gatt.requestMtu(512)){
-                isMTUExtend = true;
-            }else{
-                isMTUExtend = false;
-            }
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
             // ペリフェラルとの接続が切れた時点でオブジェクトを空にする
             if (connectedGatt != null) {
@@ -50,6 +48,20 @@ public class BLEClient extends BluetoothGattCallback {
             if(connectInterface != null) {
                 connectInterface.onDisConnect();
             }
+        }
+    }
+
+    @Override
+    public void onMtuChanged(BluetoothGatt gatt, int mtu, int status){
+        if (status == BluetoothGatt.GATT_SUCCESS){
+           Byte mode = _requestMode.remove();
+           if(mode == 1){
+               valueMTU = mtu;
+               isReadMTUExtend = 2;
+           }else if(mode == 2) {
+               valueMTU = mtu;
+               isWriteMTUExtend = 2;
+           }
         }
     }
 
@@ -106,6 +118,7 @@ public class BLEClient extends BluetoothGattCallback {
         //characteristic を取得しておく
         _readQueue = new LinkedList<Byte>();
         _writeQueue = new LinkedList<Byte>();
+        _requestMode = new LinkedList<Byte>();
         //rlock = new ReentrantLock();
         //wlock = new ReentrantLock();
         isConnect = true;
@@ -139,16 +152,24 @@ public class BLEClient extends BluetoothGattCallback {
             public void run() {
                 while (true) {
                     try {
-                        Thread.sleep(17);
+                        Thread.sleep(40);
                     }catch (Exception e){
 
                     }
                     if(isReadReturn) {
-
-                        if(connectedGatt.readCharacteristic(outputCharacteristic)) {
-                            isReadReturn = false;
-                        }else{
-                            isWriteReturn = true;
+                        if(isReadMTUExtend == 0) {
+                            isReadMTUExtend = 1;
+                            _requestMode.add((byte)1);
+                            connectedGatt.requestMtu(valueMTU);
+                        }
+                        if(isReadMTUExtend == 2) {
+                            if (connectedGatt.readCharacteristic(outputCharacteristic)) {
+                                isReadReturn = false;
+                                isReadMTUExtend = 0;
+                            } else {
+                                isReadReturn = true;
+                                isReadMTUExtend = 2;
+                            }
                         }
                     }
                     if(isConnect != true){
@@ -164,38 +185,47 @@ public class BLEClient extends BluetoothGattCallback {
             public void run() {
                 while (true) {
                     try {
-                        Thread.sleep(17);
+                        Thread.sleep(40);
                     }catch (Exception e){
 
                     }
                     if(isWriteReturn) {
-                        if (_writeQueue != null && _writeQueue.size() != 0) {
-                            int size = _writeQueue.size() > BtSocketLib.SEND_DATA_SIZE_MAX ? BtSocketLib.SEND_DATA_SIZE_MAX : _writeQueue.size();
-                            byte[] wroteData = new byte[size];
-                            //wlock.lock();
-                            try {
-                                for (int i = 0; i < size ; i++) {
-                                    wroteData[i] = _writeQueue.peek();
-                                }
-                            } finally {
-                                //wlock.unlock();
-                            }
-
-
-                            inputCharacteristic.setValue(wroteData);
-                            if(connectedGatt.writeCharacteristic(inputCharacteristic)) {
-                                isWriteReturn = false;
+                        if(isWriteMTUExtend == 0) {
+                            _requestMode.add((byte)2);
+                            connectedGatt.requestMtu(valueMTU);
+                            isWriteMTUExtend = 1;
+                        }
+                        if(isWriteMTUExtend == 2) {
+                            if (_writeQueue != null && _writeQueue.size() != 0) {
+                                int size = _writeQueue.size() > valueMTU/2 ? valueMTU/2 : _writeQueue.size();
+                                byte[] wroteData = new byte[size];
                                 //wlock.lock();
                                 try {
                                     for (int i = 0; i < size; i++) {
-                                        _writeQueue.poll();
+                                        wroteData[i] = _writeQueue.peek();
                                     }
                                 } finally {
                                     //wlock.unlock();
                                 }
 
-                            }else{
-                                isWriteReturn = true;
+
+                                inputCharacteristic.setValue(wroteData);
+                                if (connectedGatt.writeCharacteristic(inputCharacteristic)) {
+                                    isWriteReturn = false;
+                                    isWriteMTUExtend = 0;
+                                    //wlock.lock();
+                                    try {
+                                        for (int i = 0; i < size; i++) {
+                                            _writeQueue.poll();
+                                        }
+                                    } finally {
+                                        //wlock.unlock();
+                                    }
+
+                                } else {
+                                    isWriteReturn = true;
+                                    isWriteMTUExtend = 2;
+                                }
                             }
                         }
                     }
