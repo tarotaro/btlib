@@ -31,6 +31,7 @@ public class BLEClient extends BluetoothGattCallback {
     private int isReadMTUExtend = 0;
     private int isWriteMTUExtend = 0;
     private int valueMTU = 512;
+    private final int CONNECTION_INTERVAL = 20;
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -152,7 +153,7 @@ public class BLEClient extends BluetoothGattCallback {
             public void run() {
                 while (true) {
                     try {
-                        Thread.sleep(40);
+                        Thread.sleep(CONNECTION_INTERVAL);
                     }catch (Exception e){
 
                     }
@@ -185,7 +186,7 @@ public class BLEClient extends BluetoothGattCallback {
             public void run() {
                 while (true) {
                     try {
-                        Thread.sleep(40);
+                        Thread.sleep(CONNECTION_INTERVAL);
                     }catch (Exception e){
 
                     }
