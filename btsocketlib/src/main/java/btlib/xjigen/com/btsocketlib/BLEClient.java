@@ -32,6 +32,10 @@ public class BLEClient extends BluetoothGattCallback {
     private int isWriteMTUExtend = 0;
     private int valueMTU = 512;
     private final int CONNECTION_INTERVAL = 20;
+    private long _calculatedReadTime = 0;
+    private long _calculatedWriteTime = 0;
+    private long _nowReadStartTime = 0;
+    private long _nowWriteStartTime = 0;
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -74,6 +78,7 @@ public class BLEClient extends BluetoothGattCallback {
         if(status==BluetoothGatt.GATT_SUCCESS) {
             if (BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
                 isWriteReturn = true;
+                _calculatedWriteTime = System.currentTimeMillis() - _nowWriteStartTime;
             }
         }
 
@@ -95,6 +100,7 @@ public class BLEClient extends BluetoothGattCallback {
                         } finally {
                             //rlock.unlock();
                             isReadReturn = true;
+                            _calculatedReadTime = System.currentTimeMillis() - _nowReadStartTime;
                         }
                     }
 
@@ -165,6 +171,7 @@ public class BLEClient extends BluetoothGattCallback {
                         }
                         if(isReadMTUExtend == 2) {
                             if (connectedGatt.readCharacteristic(outputCharacteristic)) {
+                                _nowReadStartTime = System.currentTimeMillis();
                                 isReadReturn = false;
                                 isReadMTUExtend = 0;
                             } else {
@@ -212,6 +219,7 @@ public class BLEClient extends BluetoothGattCallback {
 
                                 inputCharacteristic.setValue(wroteData);
                                 if (connectedGatt.writeCharacteristic(inputCharacteristic)) {
+                                    _nowWriteStartTime = System.currentTimeMillis();
                                     isWriteReturn = false;
                                     isWriteMTUExtend = 0;
                                     //wlock.lock();
@@ -240,6 +248,13 @@ public class BLEClient extends BluetoothGattCallback {
     }
 
 
+    public long getReadTime(){
+        return _calculatedReadTime;
+    }
+
+    public long getWriteTime(){
+        return _calculatedWriteTime;
+    }
 
 
     public  Queue<Byte> getReadQueueLock() {

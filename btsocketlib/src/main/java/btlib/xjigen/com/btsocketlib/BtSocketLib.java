@@ -264,6 +264,22 @@ public class BtSocketLib implements ConnectInterface {
         return _library.mReadWriteModel.recv(len);
     }
 
+    public static long getWriteTime(){
+        if(_library.mScan != null && _library.connectMode == ConnectMode.ClientMode) {
+            return _library.mScan.getBLEClient().getWriteTime();
+        }else{
+            return 0;
+        }
+    }
+
+    public static long getReadTime(){
+        if(_library.mScan != null && _library.connectMode == ConnectMode.ClientMode) {
+            return _library.mScan.getBLEClient().getReadTime();
+        }else{
+            return 0;
+        }
+    }
+
     public static int getConnectState(){
         return _library.connectState.getState();
     }
