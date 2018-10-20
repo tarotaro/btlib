@@ -1,6 +1,5 @@
 package btlib.xjigen.com.btsocketlib;
 
-
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -12,6 +11,7 @@ import android.bluetooth.le.ScanResult;
 import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.os.Build;
+import android.os.Handler;
 import android.os.ParcelUuid;
 import android.support.annotation.RequiresApi;
 
@@ -31,6 +31,8 @@ public class Scan extends ScanCallback {
     BluetoothAdapter adapter;
     BluetoothLeScanner scanner;
 
+
+
     public Scan(){
         client = new BLEClient();
     }
@@ -38,7 +40,9 @@ public class Scan extends ScanCallback {
     public void connect(int index) {
         scanner.stopScan(this);
         devices.get(index).connectGatt(_context, false, client);
+
     }
+
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void startScan(Context context) {

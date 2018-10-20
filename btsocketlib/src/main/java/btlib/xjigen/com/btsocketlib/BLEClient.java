@@ -36,6 +36,7 @@ public class BLEClient extends BluetoothGattCallback {
     private long _calculatedWriteTime = 0;
     private long _nowReadStartTime = 0;
     private long _nowWriteStartTime = 0;
+    private int retryCount = 0;
 
     @Override
     public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
@@ -44,14 +45,20 @@ public class BLEClient extends BluetoothGattCallback {
             // ペリフェラルとの接続に成功した時点でサービスを検索する
             gatt.discoverServices();
         } else if (newState == BluetoothGatt.STATE_DISCONNECTED) {
-            // ペリフェラルとの接続が切れた時点でオブジェクトを空にする
-            if (connectedGatt != null) {
-                connectedGatt.disconnect();
-                connectedGatt.close();
-                connectedGatt = null;
-            }
-            if(connectInterface != null) {
-                connectInterface.onDisConnect();
+            if (status!=133&&status!=62||retryCount>=2) {
+                // ペリフェラルとの接続が切れた時点でオブジェクトを空にする
+                if (connectedGatt != null) {
+                    connectedGatt.disconnect();
+                    connectedGatt.close();
+                    connectedGatt = null;
+                }
+                if (connectInterface != null) {
+                    connectInterface.onDisConnect();
+                }
+                retryCount = 0;
+            }else{
+                retryCount++;
+                connectInterface.reConnect();
             }
         }
     }
@@ -75,11 +82,12 @@ public class BLEClient extends BluetoothGattCallback {
         super.onCharacteristicWrite(gatt,characteristic,status);
         //Log.d("bluetooth", "onCharacteristicWrite: " + status);
         String ch = characteristic.getUuid().toString();
-        if(status==BluetoothGatt.GATT_SUCCESS) {
-            if (BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+        if (BtSocketLib.CHAR_WRITE_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+                if(status==BluetoothGatt.GATT_SUCCESS) {
                 isWriteReturn = true;
                 _calculatedWriteTime = System.currentTimeMillis() - _nowWriteStartTime;
             }
+            isWriteReturn = true;
         }
 
     }
@@ -88,23 +96,23 @@ public class BLEClient extends BluetoothGattCallback {
     public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
         super.onCharacteristicRead(gatt,characteristic,status);
         String ch = characteristic.getUuid().toString();
-        if(status==BluetoothGatt.GATT_SUCCESS){
-                if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
-                    byte[] rd = characteristic.getValue();
-                    if (rd != null && rd.length != 0) {
-                        //rlock.lock();
-                        try {
-                            for (int i = 0; i < rd.length; i++) {
-                                _readQueue.add(rd[i]);
-                            }
-                        } finally {
-                            //rlock.unlock();
-                            isReadReturn = true;
-                            _calculatedReadTime = System.currentTimeMillis() - _nowReadStartTime;
+        if(BtSocketLib.CHAR_READ_UUID_YOU_CAN_CHANGE.equalsIgnoreCase(ch)) {
+            if(status==BluetoothGatt.GATT_SUCCESS){
+                byte[] rd = characteristic.getValue();
+                if (rd != null && rd.length != 0) {
+                    //rlock.lock();
+                    try {
+                        for (int i = 0; i < rd.length; i++) {
+                            _readQueue.add(rd[i]);
                         }
+                    } finally {
+                        //rlock.unlock();
+                        isReadReturn = true;
+                        _calculatedReadTime = System.currentTimeMillis() - _nowReadStartTime;
                     }
-
                 }
+            }
+            isReadReturn = true;
         }
     }
 

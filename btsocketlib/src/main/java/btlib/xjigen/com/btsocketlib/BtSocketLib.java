@@ -42,6 +42,7 @@ public class BtSocketLib implements ConnectInterface {
     private ReadWriteModel mReadWriteModel;
     private ArrayList<BluetoothDevice> devices;
     private ConnectMode connectMode = ConnectMode.ServerMode;
+    private int tryConnectIndex;
 
     public enum ConnectState {
         DisConnect(0),
@@ -103,6 +104,11 @@ public class BtSocketLib implements ConnectInterface {
     public void onDisConnect() {
         connectState = ConnectState.DisConnect;
         connectMode = ConnectMode.ServerMode;
+    }
+
+    @Override
+    public void reConnect(){
+        mScan.connect(tryConnectIndex);
     }
 
 
@@ -236,6 +242,7 @@ public class BtSocketLib implements ConnectInterface {
         for (BluetoothDevice dev : _library.devices){
             if (dev.getAddress().equals(address)){
                 isFound = true;
+                _library.tryConnectIndex =  index;
                 _library.mScan.connect(index);
                 break;
             }
@@ -293,12 +300,11 @@ public class BtSocketLib implements ConnectInterface {
         }
     }
 
-
-
 }
 
 interface ConnectInterface extends EventListener {
     public void onConnect();
     public void onDisConnect();
     public void callBackSearch(ArrayList<BluetoothDevice> devices);
+    public void reConnect();
 }
