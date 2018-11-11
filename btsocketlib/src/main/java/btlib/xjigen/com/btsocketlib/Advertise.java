@@ -31,6 +31,7 @@ public class Advertise extends AdvertiseCallback {
     private BluetoothGattServer gattServer;
     private BLEServer server;
     private ConnectInterface connectInterface;
+    private String uuidForName;
 
     //アドバタイズを開始
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -44,7 +45,7 @@ public class Advertise extends AdvertiseCallback {
         server = new BLEServer(connectInterface);
         gattServer = getGattServer(context, manager);
         server.setGattServer(gattServer);
-
+        uuidForName = UUID.randomUUID().toString().substring(0,4);
 
 
         //UUIDを設定
@@ -77,6 +78,10 @@ public class Advertise extends AdvertiseCallback {
             advertiser = null;
 
         }
+    }
+
+    public String getUuidForName(){
+        return uuidForName;
     }
 
     //Advertiserを取得
@@ -160,6 +165,7 @@ public class Advertise extends AdvertiseCallback {
         AdvertiseData.Builder builder = new AdvertiseData.Builder();
         builder.setIncludeTxPowerLevel(false);
         builder.addServiceUuid(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE)));
+        builder.addServiceData(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE)),uuidForName.getBytes());
 
         return builder.build();
     }

@@ -41,6 +41,7 @@ public class BtSocketLib implements ConnectInterface {
     private ConnectState connectState = ConnectState.DisConnect;
     private ReadWriteModel mReadWriteModel;
     private ArrayList<BluetoothDevice> devices;
+    private ArrayList<String> advData;
     private ConnectMode connectMode = ConnectMode.ServerMode;
     private int tryConnectIndex;
 
@@ -76,8 +77,9 @@ public class BtSocketLib implements ConnectInterface {
     }
 
     @Override
-    public void callBackSearch(ArrayList<BluetoothDevice> ret){
+    public void callBackSearch(ArrayList<BluetoothDevice> ret,ArrayList<String> retAdvData){
             devices = ret;
+            advData = retAdvData;
     }
 
     private void onStartServer() {
@@ -197,6 +199,14 @@ public class BtSocketLib implements ConnectInterface {
         _library.onSearchDevice();
     }
 
+    public static String getUUIDForName(){
+        if(_library.mAdvertise != null){
+            return _library.mAdvertise.getUuidForName();
+        }else{
+            return null;
+        }
+    }
+
     public static String GetBluetoothIDList(){
         JSONObject object = new JSONObject();
         JSONArray deviceArray = new JSONArray();
@@ -210,16 +220,18 @@ public class BtSocketLib implements ConnectInterface {
             }
         }
         devices.addAll(_library.devices);
+        int devCnt = 0;
         try {
             for (BluetoothDevice dev : devices) {
                 JSONObject device = new JSONObject();
-                String devName = dev.getName();
+                String devName = _library.advData.get(devCnt);
                 if (devName == null) {
                     devName = "NoName";
                 }
                 device.put("device", devName);
                 device.put("address", dev.getAddress());
                 deviceArray.put(device);
+                devCnt++;
             }
             object.put("devices", deviceArray);
         } catch (JSONException exp) {
@@ -305,6 +317,6 @@ public class BtSocketLib implements ConnectInterface {
 interface ConnectInterface extends EventListener {
     public void onConnect();
     public void onDisConnect();
-    public void callBackSearch(ArrayList<BluetoothDevice> devices);
+    public void callBackSearch(ArrayList<BluetoothDevice> devices,ArrayList<String> advData);
     public void reConnect();
 }

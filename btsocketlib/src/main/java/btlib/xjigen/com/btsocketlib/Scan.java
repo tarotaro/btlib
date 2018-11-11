@@ -25,6 +25,7 @@ import static android.bluetooth.le.ScanSettings.*;
 public class Scan extends ScanCallback {
 
     private ArrayList<BluetoothDevice> devices;
+    private ArrayList<String> advData;
     private Context _context;
     private BLEClient client;
     BluetoothManager manager;
@@ -52,6 +53,7 @@ public class Scan extends ScanCallback {
         scanner = adapter.getBluetoothLeScanner();
         ScanSettings settings = makeScanSettings();
         devices = new ArrayList<BluetoothDevice>();
+        advData = new ArrayList<String>();
         ScanFilter scanFilter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))).build();
         ArrayList scanFilterList = new ArrayList();
         scanFilterList.add(scanFilter);
@@ -77,8 +79,15 @@ public class Scan extends ScanCallback {
         super.onScanResult(callbackType,result);
         if(!devices.contains(result.getDevice())) {
             devices.add(result.getDevice());
+            byte[] data = result.getScanRecord().getServiceData(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE)));
+            if(data != null) {
+                String str = new String(data);
+                advData.add(str);
+            }else{
+                advData.add(result.getDevice().getName());
+            }
         }
-        client.connectInterface.callBackSearch(devices);
+        client.connectInterface.callBackSearch(devices,advData);
     }
 
     @Override
