@@ -87,6 +87,11 @@ public class BtSocketLib implements ConnectInterface {
         mAdvertise.startAdvertise(activity.getApplicationContext(),this);
     }
 
+    private Boolean isAdvertizeSupported(){
+        Advertise adv = new Advertise();
+        return adv.isAdvertisementSurpport(activity.getApplicationContext());
+    }
+
     private void onCancel() {
         if(mAdvertise != null){
             mAdvertise.stopAdvertise();
@@ -192,6 +197,10 @@ public class BtSocketLib implements ConnectInterface {
     public static void startServer()
     {
         _library.onStartServer();
+    }
+
+    public static Boolean isAdverteizeSupport(){
+        return _library.isAdvertizeSupported();
     }
 
 

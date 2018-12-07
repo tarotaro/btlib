@@ -69,6 +69,12 @@ public class Advertise extends AdvertiseCallback {
         return server;
     }
 
+    public Boolean isAdvertisementSurpport(Context context){
+        BluetoothManager manager = (BluetoothManager) context.getSystemService(Context.BLUETOOTH_SERVICE);
+        BluetoothAdapter adapter = manager.getAdapter();
+        return adapter.isMultipleAdvertisementSupported();
+    }
+
     //アドバタイズを停止
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     public void stopAdvertise() {
