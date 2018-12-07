@@ -199,7 +199,7 @@ public class BtSocketLib implements ConnectInterface {
         _library.onStartServer();
     }
 
-    public static Boolean isAdvertiseSupported(){
+    public static boolean isAdvertiseSupported(){
         return _library.isAdvertiseCheck();
     }
 
