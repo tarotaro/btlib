@@ -57,8 +57,11 @@ public class Scan extends ScanCallback {
         ScanFilter scanFilter = new ScanFilter.Builder().setServiceUuid(new ParcelUuid(UUID.fromString(BtSocketLib.SERVICE_UUID_YOU_CAN_CHANGE))).build();
         ArrayList scanFilterList = new ArrayList();
         scanFilterList.add(scanFilter);
-        scanner.startScan(scanFilterList,settings,this);
-
+        if(adapter.isOffloadedFilteringSupported()) {
+            scanner.startScan(scanFilterList, settings, this);
+        }else{
+            scanner.startScan(this);
+        }
     }
 
     public BLEClient getBLEClient(){
