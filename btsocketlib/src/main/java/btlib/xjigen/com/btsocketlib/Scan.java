@@ -60,7 +60,9 @@ public class Scan extends ScanCallback {
         if(adapter.isOffloadedFilteringSupported()) {
             scanner.startScan(scanFilterList, settings, this);
         }else{
-            scanner.startScan(this);
+            //scanner.startScan(this);
+            scanFilterList = new ArrayList();
+            scanner.startScan(scanFilterList,settings, this);
         }
     }
 
