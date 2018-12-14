@@ -25,12 +25,15 @@ public class BLEClient extends BluetoothGattCallback {
     private Thread writeThread;
     //private Lock rlock;
     //private Lock wlock;
+    int mtuRChangeCounter = 50;
+    int mtuWChangeCounter = 50;
     private boolean isConnect = false;
     private boolean isReadReturn = true;
     private boolean isWriteReturn = true;
     private int isReadMTUExtend = 0;
     private int isWriteMTUExtend = 0;
     private int valueMTU = 512;
+    private int smallValueMTU = 158;
     private final int CONNECTION_INTERVAL = 20;
     private long _calculatedReadTime = 0;
     private long _calculatedWriteTime = 0;
@@ -65,6 +68,7 @@ public class BLEClient extends BluetoothGattCallback {
 
     @Override
     public void onMtuChanged(BluetoothGatt gatt, int mtu, int status){
+        super.onMtuChanged(gatt,mtu,status);
         if (status == BluetoothGatt.GATT_SUCCESS){
            Byte mode = _requestMode.remove();
            if(mode == 1){
@@ -162,6 +166,7 @@ public class BLEClient extends BluetoothGattCallback {
         outputdescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
         connectedGatt.writeDescriptor(outputdescriptor);*/
 
+        mtuRChangeCounter = 50;
         readThread  = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -175,13 +180,22 @@ public class BLEClient extends BluetoothGattCallback {
                         if(isReadMTUExtend == 0) {
                             isReadMTUExtend = 1;
                             _requestMode.add((byte)1);
-                            connectedGatt.requestMtu(valueMTU);
+                            Boolean isSuccess = connectedGatt.requestMtu(valueMTU);
+                            if(!isSuccess) {
+                                isSuccess = connectedGatt.requestMtu(smallValueMTU);
+                                if (!isSuccess) {
+                                    isReadMTUExtend = 2;
+                                }
+                            }
                         }
                         if(isReadMTUExtend == 2) {
                             if (connectedGatt.readCharacteristic(outputCharacteristic)) {
                                 _nowReadStartTime = System.currentTimeMillis();
                                 isReadReturn = false;
                                 isReadMTUExtend = 0;
+                                if(mtuRChangeCounter < 0){
+                                    isReadMTUExtend = 2;
+                                }
                             } else {
                                 isReadReturn = true;
                                 isReadMTUExtend = 2;
@@ -191,11 +205,16 @@ public class BLEClient extends BluetoothGattCallback {
                     if(isConnect != true){
                         break;
                     }
+                    mtuRChangeCounter--;
+                    if(mtuRChangeCounter < 0 ){
+                        isReadMTUExtend = 2;
+                    }
                 }
             }
         });
         readThread.start();
 
+        mtuWChangeCounter = 50;
         writeThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -208,8 +227,14 @@ public class BLEClient extends BluetoothGattCallback {
                     if(isWriteReturn) {
                         if(isWriteMTUExtend == 0) {
                             _requestMode.add((byte)2);
-                            connectedGatt.requestMtu(valueMTU);
                             isWriteMTUExtend = 1;
+                            Boolean isSuccess = connectedGatt.requestMtu(valueMTU);
+                            if(!isSuccess){
+                                isSuccess = connectedGatt.requestMtu(smallValueMTU);
+                                if(!isSuccess) {
+                                    isWriteMTUExtend = 2;
+                                }
+                            }
                         }
                         if(isWriteMTUExtend == 2) {
                             if (_writeQueue != null && _writeQueue.size() != 0) {
@@ -230,6 +255,9 @@ public class BLEClient extends BluetoothGattCallback {
                                     _nowWriteStartTime = System.currentTimeMillis();
                                     isWriteReturn = false;
                                     isWriteMTUExtend = 0;
+                                    if(mtuWChangeCounter < 0){
+                                        isWriteMTUExtend = 2;
+                                    }
                                     //wlock.lock();
                                     try {
                                         for (int i = 0; i < size; i++) {
@@ -248,6 +276,10 @@ public class BLEClient extends BluetoothGattCallback {
                     }
                     if(isConnect != true){
                         break;
+                    }
+                    mtuWChangeCounter--;
+                    if(mtuWChangeCounter < 0 ){
+                        isWriteMTUExtend = 2;
                     }
                 }
             }
