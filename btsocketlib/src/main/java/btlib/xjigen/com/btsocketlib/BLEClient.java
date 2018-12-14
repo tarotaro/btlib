@@ -208,6 +208,7 @@ public class BLEClient extends BluetoothGattCallback {
                     mtuRChangeCounter--;
                     if(mtuRChangeCounter < 0 ){
                         isReadMTUExtend = 2;
+                        mtuRChangeCounter = -1;
                     }
                 }
             }
@@ -280,6 +281,7 @@ public class BLEClient extends BluetoothGattCallback {
                     mtuWChangeCounter--;
                     if(mtuWChangeCounter < 0 ){
                         isWriteMTUExtend = 2;
+                        mtuWChangeCounter = -1;
                     }
                 }
             }
