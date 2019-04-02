@@ -1,1 +1,1 @@
-include ':app', ':btlibplugin', ':btsocketlib'
+include ':app', ':btlibplugin', ':btsocketlib', ':btseriallib'

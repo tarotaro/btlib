@@ -2,6 +2,7 @@ package btlib.xjigen.com.btsocketlib;
 
 import android.app.Activity;
 
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
 import android.util.Log;
@@ -14,6 +15,8 @@ import org.json.JSONObject;
 
 import java.lang.reflect.Array;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.EventListener;
@@ -90,6 +93,34 @@ public class BtSocketLib implements ConnectInterface {
     private Boolean isAdvertiseCheck(){
         Advertise adv = new Advertise();
         return adv.isAdvertisementSurpport(activity.getApplicationContext());
+    }
+
+    private String getDeviceAddress(){
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        String bluetoothMacAddress = "";
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M){
+            try {
+                Field mServiceField = bluetoothAdapter.getClass().getDeclaredField("mService");
+                mServiceField.setAccessible(true);
+
+                Object btManagerService = mServiceField.get(bluetoothAdapter);
+
+                if (btManagerService != null) {
+                    bluetoothMacAddress = (String) btManagerService.getClass().getMethod("getAddress").invoke(btManagerService);
+                }
+            } catch (NoSuchFieldException e) {
+
+            } catch (NoSuchMethodException e) {
+
+            } catch (IllegalAccessException e) {
+
+            } catch (InvocationTargetException e) {
+
+            }
+        } else {
+            bluetoothMacAddress = bluetoothAdapter.getAddress();
+        }
+        return bluetoothMacAddress;
     }
 
     private void onCancel() {
@@ -203,6 +234,10 @@ public class BtSocketLib implements ConnectInterface {
         return _library.isAdvertiseCheck();
     }
 
+    public static String getBluetoothDeviceAddress(){
+        String add = _library.getDeviceAddress();
+        return add;
+    }
 
     public static void searchDevice() {
         _library.onSearchDevice();

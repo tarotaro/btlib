@@ -55,6 +55,13 @@ public class Advertise extends AdvertiseCallback {
         advertiser.startAdvertising(makeAdvertiseSetting(),makeAdvertiseData(),this);
     }
 
+    //アドバタイズを開始
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    public String getDeviceAddress(Context context){
+        BluetoothManager manager = (BluetoothManager)context.getSystemService(Context.BLUETOOTH_SERVICE);
+        return manager.getAdapter().getAddress();
+    }
+
     @Override
     public void onStartSuccess(AdvertiseSettings settingsInEffect) {
         super.onStartSuccess(settingsInEffect);
