@@ -5,6 +5,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
+import android.provider.Settings;
 import android.util.Log;
 import com.unity3d.player.UnityPlayer;
 
@@ -34,6 +35,7 @@ public class BtSocketLib implements ConnectInterface {
     public static final String CHAR_READ_UUID_YOU_CAN_CHANGE = "0000F9EE-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_DESKR_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA9-0000-1000-8000-00805f9b34fb";
     public static final String CHAR_DESKW_CONFIG_UUID_YOU_CAN_CHANGE = "0009FA8-0000-1000-8000-00805f9b34fb";
+    private static final String SECURE_SETTINGS_BLUETOOTH_ADDRESS = "bluetooth_address";
     public static final int    SEND_DATA_SIZE_MAX = 20;
 
 
@@ -99,24 +101,7 @@ public class BtSocketLib implements ConnectInterface {
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         String bluetoothMacAddress = "";
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M){
-            try {
-                Field mServiceField = bluetoothAdapter.getClass().getDeclaredField("mService");
-                mServiceField.setAccessible(true);
-
-                Object btManagerService = mServiceField.get(bluetoothAdapter);
-
-                if (btManagerService != null) {
-                    bluetoothMacAddress = (String) btManagerService.getClass().getMethod("getAddress").invoke(btManagerService);
-                }
-            } catch (NoSuchFieldException e) {
-
-            } catch (NoSuchMethodException e) {
-
-            } catch (IllegalAccessException e) {
-
-            } catch (InvocationTargetException e) {
-
-            }
+            bluetoothMacAddress = Settings.Secure.getString(activity.getContentResolver(), SECURE_SETTINGS_BLUETOOTH_ADDRESS);
         } else {
             bluetoothMacAddress = bluetoothAdapter.getAddress();
         }
