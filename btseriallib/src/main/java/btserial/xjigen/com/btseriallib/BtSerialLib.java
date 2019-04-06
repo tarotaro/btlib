@@ -29,6 +29,7 @@ import android.content.IntentFilter;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
+import android.util.Log;
 
 import com.github.ivbaranov.rxbluetooth.BluetoothConnection;
 import com.github.ivbaranov.rxbluetooth.RxBluetooth;
@@ -62,7 +63,7 @@ public class BtSerialLib {
 
     private ArrayList<BluetoothDevice> mDevices;
     private Queue<Byte> mReadQueue;
-    private ConnectState mState;
+    private ConnectState mState = ConnectState.DisConnect;
     private ConnectMode  mConnectMode;
     private String uuidForName = null;
     private RxBluetooth mRxBluetooth;
@@ -147,7 +148,7 @@ public class BtSerialLib {
                 new Consumer<BluetoothSocket>() {
                     @Override public void accept(BluetoothSocket bluetoothSocket) throws Exception {
                         // Client connected, do anything with the socket
-                        _library.mClientSocket = bluetoothSocket;
+                        _library.mServerSocket = bluetoothSocket;
                         _library.mServerBluetoothConnection = new BluetoothConnection(bluetoothSocket);
                         _library.mServerBluetoothConnection.observeByteStream()
                                 .observeOn(AndroidSchedulers.mainThread())
@@ -175,10 +176,10 @@ public class BtSerialLib {
         _library.mRxBluetooth.observeDiscovery()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.computation())
-                .filter(BtPredicate.in(BluetoothAdapter.ACTION_DISCOVERY_STARTED))
+                .filter(BtPredicate.in(BluetoothAdapter.ACTION_DISCOVERY_STARTED, BluetoothAdapter.ACTION_DISCOVERY_FINISHED))
                 .subscribe(new Consumer<String>() {
                     @Override public void accept(String action) throws Exception {
-                        //
+                        Log.d("bluetooth",action);
                     }
                 });
         _library.mRxBluetooth.observeScanMode()
@@ -187,7 +188,7 @@ public class BtSerialLib {
                 .filter(BtPredicate.in(BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE))
                 .subscribe(new Consumer<Integer>() {
                     @Override public void accept(Integer integer) throws Exception {
-                        //
+                        Log.d("bluetooth","setCcanMode");
                     }
                 });
 
@@ -196,7 +197,10 @@ public class BtSerialLib {
                 .subscribeOn(Schedulers.computation())
                 .subscribe(new Consumer<BluetoothDevice>() {
                     @Override public void accept(@NonNull BluetoothDevice bluetoothDevice) throws Exception {
-                        _library.mDevices.add(bluetoothDevice);
+                        Log.d("bluetooth","deviceFound");
+                        if(!_library.mDevices.contains(bluetoothDevice)) {
+                            _library.mDevices.add(bluetoothDevice);
+                        }
                     }
                 });
         _library.mRxBluetooth.startDiscovery();
