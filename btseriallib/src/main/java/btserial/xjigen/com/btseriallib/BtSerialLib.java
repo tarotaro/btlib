@@ -22,18 +22,14 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Bundle;
+import android.os.Looper;
 import android.provider.Settings;
-import android.support.annotation.NonNull;
+
 import android.util.Log;
 
 import com.github.ivbaranov.rxbluetooth.BluetoothConnection;
 import com.github.ivbaranov.rxbluetooth.RxBluetooth;
-import com.github.ivbaranov.rxbluetooth.events.ConnectionStateEvent;
+import com.github.ivbaranov.rxbluetooth.events.AclEvent;
 import com.github.ivbaranov.rxbluetooth.predicates.BtPredicate;
 import com.unity3d.player.UnityPlayer;
 
@@ -41,14 +37,13 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.net.ConnectException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.Set;
 import java.util.UUID;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.annotations.NonNull;
 import io.reactivex.functions.Consumer;
 import io.reactivex.schedulers.Schedulers;
 
@@ -56,7 +51,7 @@ import io.reactivex.schedulers.Schedulers;
 public class BtSerialLib {
     // Member fields
     private static final UUID UUID_ANDROID_DEVICE =
-            UUID.fromString("fa87c0d0-afac-11de-8a39-0800200c9a66");
+            UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
     private static final String SECURE_SETTINGS_BLUETOOTH_ADDRESS = "bluetooth_address";
 
@@ -71,6 +66,7 @@ public class BtSerialLib {
     private BluetoothSocket mClientSocket;
     private BluetoothConnection mServerBluetoothConnection;
     private BluetoothConnection mClientBluetoothConnection;
+    private Looper mByteStreamLooper;
 
 
     private static BtSerialLib _library = new BtSerialLib();
@@ -108,7 +104,7 @@ public class BtSerialLib {
         return bluetoothMacAddress;
     }
 
-    private Context getCurrentContext(){
+    private Activity getCurrentContext(){
         return UnityPlayer.currentActivity;
     }
 
@@ -117,22 +113,19 @@ public class BtSerialLib {
         mRxBluetooth = new RxBluetooth(getCurrentContext());
         mDevices = new ArrayList<BluetoothDevice>();
 
-        mRxBluetooth.observeConnectionState()
+        mRxBluetooth.observeAclEvent() //
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribeOn(Schedulers.computation())
-                .subscribe(new Consumer<ConnectionStateEvent>() {
-                    @Override public void accept(ConnectionStateEvent event) throws Exception {
-                        switch (event.getState()) {
-                            case BluetoothAdapter.STATE_DISCONNECTED:
-                                mState = ConnectState.DisConnect;
-                                break;
-                            case BluetoothAdapter.STATE_CONNECTING:
-                                mState = ConnectState.Connecting;
-                                break;
-                            case BluetoothAdapter.STATE_CONNECTED:
+                .subscribe(new Consumer<AclEvent>() {
+                    @Override public void accept(AclEvent aclEvent) throws Exception {
+                        switch (aclEvent.getAction()) {
+                            case BluetoothDevice.ACTION_ACL_CONNECTED:
                                 mState = ConnectState.Connected;
                                 break;
-                            case BluetoothAdapter.STATE_DISCONNECTING:
+                            case BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED:
+                                break;
+                            case BluetoothDevice.ACTION_ACL_DISCONNECTED:
+                                mState = ConnectState.DisConnect;
                                 break;
                         }
                     }
@@ -143,15 +136,21 @@ public class BtSerialLib {
     public static void startServer() {
         _library.uuidForName = UUID.randomUUID().toString().substring(0,4);
         _library.mConnectMode = ConnectMode.ServerMode;
+        _library.mRxBluetooth.enableDiscoverability(_library.getCurrentContext(),1);
 
-        _library.mRxBluetooth.connectAsServer("servername", UUID_ANDROID_DEVICE).subscribe(
+        _library.mRxBluetooth.connectAsServer("servername", UUID_ANDROID_DEVICE)
+                .observeOn(AndroidSchedulers.from(Looper.myLooper(),true))
+                .subscribeOn(Schedulers.computation())
+                .subscribe(
                 new Consumer<BluetoothSocket>() {
                     @Override public void accept(BluetoothSocket bluetoothSocket) throws Exception {
                         // Client connected, do anything with the socket
                         _library.mServerSocket = bluetoothSocket;
                         _library.mServerBluetoothConnection = new BluetoothConnection(bluetoothSocket);
+                        _library.mState = ConnectState.Connected;
+                        _library.mByteStreamLooper = Looper.myLooper();
                         _library.mServerBluetoothConnection.observeByteStream()
-                                .observeOn(AndroidSchedulers.mainThread())
+                                .observeOn(AndroidSchedulers.from(_library.mByteStreamLooper,true))
                                 .subscribeOn(Schedulers.io())
                                 .subscribe(new Consumer<Byte>() {
                                     @Override public void accept(Byte aByte) throws Exception {
@@ -174,7 +173,7 @@ public class BtSerialLib {
 
     public static void searchDevice() {
         _library.mRxBluetooth.observeDiscovery()
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(AndroidSchedulers.from(Looper.myLooper(),true))
                 .subscribeOn(Schedulers.computation())
                 .filter(BtPredicate.in(BluetoothAdapter.ACTION_DISCOVERY_STARTED, BluetoothAdapter.ACTION_DISCOVERY_FINISHED))
                 .subscribe(new Consumer<String>() {
@@ -182,18 +181,9 @@ public class BtSerialLib {
                         Log.d("bluetooth",action);
                     }
                 });
-        _library.mRxBluetooth.observeScanMode()
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribeOn(Schedulers.computation())
-                .filter(BtPredicate.in(BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE))
-                .subscribe(new Consumer<Integer>() {
-                    @Override public void accept(Integer integer) throws Exception {
-                        Log.d("bluetooth","setCcanMode");
-                    }
-                });
 
         _library.mRxBluetooth.observeDevices()
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(AndroidSchedulers.from(Looper.myLooper(),true))
                 .subscribeOn(Schedulers.computation())
                 .subscribe(new Consumer<BluetoothDevice>() {
                     @Override public void accept(@NonNull BluetoothDevice bluetoothDevice) throws Exception {
@@ -203,7 +193,19 @@ public class BtSerialLib {
                         }
                     }
                 });
+
+        _library.mRxBluetooth.observeScanMode()
+                .observeOn(AndroidSchedulers.from(Looper.myLooper(),true))
+                .subscribeOn(Schedulers.computation())
+                .filter(BtPredicate.in(BluetoothAdapter.SCAN_MODE_NONE,BluetoothAdapter.SCAN_MODE_CONNECTABLE,BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE))
+                .subscribe(new Consumer<Integer>() {
+                    @Override public void accept(Integer integer) throws Exception {
+                        Log.d("bluetooth","setCcanMode");
+                    }
+                });
+
         _library.mRxBluetooth.startDiscovery();
+
     }
 
     public static void connectById(String address)
@@ -217,14 +219,21 @@ public class BtSerialLib {
         for (BluetoothDevice dev : _library.mDevices){
             if (dev.getAddress().equals(address)){
                 isFound = true;
-                _library.mRxBluetooth.connectAsClient(dev, UUID_ANDROID_DEVICE).subscribe(
+
+                _library.mState = ConnectState.Connecting;
+                _library.mRxBluetooth.connectAsClient(dev, UUID_ANDROID_DEVICE)
+                        .observeOn(AndroidSchedulers.from(Looper.myLooper(),true))
+                        .subscribeOn(Schedulers.computation())
+                        .subscribe(
                         new Consumer<BluetoothSocket>() {
                             @Override public void accept(BluetoothSocket bluetoothSocket) throws Exception {
                                 // Connected to bluetooth device, do anything with the socket
                                 _library.mClientSocket = bluetoothSocket;
                                 _library.mClientBluetoothConnection = new BluetoothConnection(bluetoothSocket);
+                                _library.mState = ConnectState.Connected;
+                                _library.mByteStreamLooper = Looper.myLooper();
                                 _library.mClientBluetoothConnection.observeByteStream()
-                                        .observeOn(AndroidSchedulers.mainThread())
+                                        .observeOn(AndroidSchedulers.from(_library.mByteStreamLooper,true))
                                         .subscribeOn(Schedulers.io())
                                         .subscribe(new Consumer<Byte>() {
                                             @Override public void accept(Byte aByte) throws Exception {
@@ -308,9 +317,12 @@ public class BtSerialLib {
     }
 
     public static void send(byte [] data,int len ){
-        if(_library.mConnectMode == ConnectMode.ServerMode){
+        if(_library.mState == ConnectState.DisConnect) {
+            return;
+        }
+        if(_library.mConnectMode == ConnectMode.ServerMode && _library.mServerBluetoothConnection != null){
             _library.mServerBluetoothConnection.send(data);
-        }else{
+        }else if(_library.mClientBluetoothConnection != null){
             _library.mClientBluetoothConnection.send(data);
         }
     }
