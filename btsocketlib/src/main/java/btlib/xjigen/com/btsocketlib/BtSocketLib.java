@@ -228,7 +228,7 @@ public class BtSocketLib implements ConnectInterface {
         _library.onSearchDevice();
     }
 
-    public static String getUUIDForName(){
+    public static String getUuidForName(){
         if(_library.mAdvertise != null){
             return _library.mAdvertise.getUuidForName();
         }else{
@@ -236,7 +236,7 @@ public class BtSocketLib implements ConnectInterface {
         }
     }
 
-    public static String GetBluetoothIDList(){
+    public static String GetBluetoothList(){
         JSONObject object = new JSONObject();
         JSONArray deviceArray = new JSONArray();
         ArrayList<BluetoothDevice> devices =  new ArrayList<BluetoothDevice>();
@@ -253,12 +253,21 @@ public class BtSocketLib implements ConnectInterface {
         try {
             for (BluetoothDevice dev : devices) {
                 JSONObject device = new JSONObject();
-                String devName = _library.advData.get(devCnt);
-                if (devName == null) {
-                    devName = "NoName";
+                String uuid = _library.advData.get(devCnt);
+                String deviceName = dev.getName();
+                String devName = "NoName";
+                if (uuid == null) {
+                    if(deviceName == null) {
+                        devName = "NoName";
+                    }else{
+                        devName = deviceName;
+                    }
+                }else{
+                    devName = uuid;
                 }
-                device.put("device", devName);
+                device.put("device", dev.getName());
                 device.put("address", dev.getAddress());
+                device.put("uuid",devName);
                 deviceArray.put(device);
                 devCnt++;
             }
@@ -271,7 +280,7 @@ public class BtSocketLib implements ConnectInterface {
     }
 
     //接続
-    public static void connectById(String address)
+    public static void connectByUuid(String uuid)
     {
         _library.connectState = ConnectState.Connecting;
         if ( _library.devices == null){
@@ -281,7 +290,19 @@ public class BtSocketLib implements ConnectInterface {
         boolean isFound = false;
         int index = 0;
         for (BluetoothDevice dev : _library.devices){
-            if (dev.getAddress().equals(address)){
+            String advuuid = _library.advData.get(index);
+            String deviceName = dev.getName();
+            String devName = "NoName";
+            if (advuuid == null) {
+                if(deviceName == null) {
+                    devName = "NoName";
+                }else{
+                    devName = deviceName;
+                }
+            }else{
+                devName = advuuid;
+            }
+            if (devName.equals(uuid)){
                 isFound = true;
                 _library.tryConnectIndex =  index;
                 _library.mScan.connect(index);

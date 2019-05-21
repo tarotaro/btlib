@@ -208,7 +208,7 @@ public class BtSerialLib {
 
     }
 
-    public static void connectById(String address)
+    public static void connectByUuid(String address)
     {
 
         if ( _library.mDevices == null){
@@ -273,11 +273,11 @@ public class BtSerialLib {
         return _library.mState.getState();
     }
 
-    public static String getUUIDForName(){
-        return _library.uuidForName;
+    public static String getUuidForName(){
+        return _library.getDeviceAddress();
     }
 
-    public static String GetBluetoothIDList(){
+    public static String GetBluetoothList(){
         JSONObject object = new JSONObject();
         JSONArray deviceArray = new JSONArray();
         ArrayList<BluetoothDevice> devices =  new ArrayList<BluetoothDevice>();
@@ -300,6 +300,7 @@ public class BtSerialLib {
                 }
                 device.put("device", devName);
                 device.put("address", dev.getAddress());
+                device.put("uuid", dev.getAddress());
                 deviceArray.put(device);
                 devCnt++;
             }
