@@ -45,7 +45,7 @@ public class Advertise extends AdvertiseCallback {
         server = new BLEServer(connectInterface);
         gattServer = getGattServer(context, manager);
         server.setGattServer(gattServer);
-        uuidForName = UUID.randomUUID().toString().substring(0,4);
+        uuidForName = UUID.randomUUID().toString().substring(0,6);
 
 
         //UUIDを設定
