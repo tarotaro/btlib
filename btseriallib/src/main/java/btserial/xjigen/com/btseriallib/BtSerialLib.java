@@ -21,6 +21,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
 import android.os.Looper;
 import android.provider.Settings;
@@ -94,14 +95,14 @@ public class BtSerialLib {
     }
 
     private String getDeviceAddress(){
-        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        /*BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         String bluetoothMacAddress = "";
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M){
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M)*
             bluetoothMacAddress = Settings.Secure.getString(getCurrentContext().getContentResolver(), SECURE_SETTINGS_BLUETOOTH_ADDRESS);
         } else {
             bluetoothMacAddress = BluetoothAdapter.getDefaultAdapter().getAddress();
-        }
-        return bluetoothMacAddress;
+        }*/
+        return uuidForName;
     }
 
     private Activity getCurrentContext(){
@@ -134,7 +135,9 @@ public class BtSerialLib {
     }
 
     public static void startServer() {
-        _library.uuidForName = UUID.randomUUID().toString().substring(0,4);
+        _library.uuidForName = UUID.randomUUID().toString().substring(0,6);
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        bluetoothAdapter.setName(_library.uuidForName);
         _library.mConnectMode = ConnectMode.ServerMode;
         _library.mRxBluetooth.enableDiscoverability(_library.getCurrentContext(),1);
 
@@ -217,7 +220,10 @@ public class BtSerialLib {
         }
         boolean isFound = false;
         for (BluetoothDevice dev : _library.mDevices){
-            if (dev.getAddress().equals(address)){
+            if(dev.getName()==null){
+                continue;
+            }
+            if (dev.getName().equals(address)){
                 isFound = true;
 
                 _library.mState = ConnectState.Connecting;
@@ -300,7 +306,7 @@ public class BtSerialLib {
                 }
                 device.put("device", devName);
                 device.put("address", dev.getAddress());
-                device.put("uuid", dev.getAddress());
+                device.put("uuid", devName);
                 deviceArray.put(device);
                 devCnt++;
             }
