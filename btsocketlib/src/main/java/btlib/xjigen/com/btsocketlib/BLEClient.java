@@ -4,6 +4,7 @@ import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattDescriptor;
+import android.os.Debug;
 import android.util.Log;
 
 import java.util.LinkedList;
@@ -109,6 +110,7 @@ public class BLEClient extends BluetoothGattCallback {
                         for (int i = 0; i < rd.length; i++) {
                             _readQueue.add(rd[i]);
                         }
+                        Log.d("bluetoothReadDebug","readDataLength:"+rd.length);
                     } finally {
                         //rlock.unlock();
                         isReadReturn = true;
@@ -243,8 +245,10 @@ public class BLEClient extends BluetoothGattCallback {
                                 byte[] wroteData = new byte[size];
                                 //wlock.lock();
                                 try {
+                                    Byte[] out = new Byte[4096];
+                                    _writeQueue.toArray(out);
                                     for (int i = 0; i < size; i++) {
-                                        wroteData[i] = _writeQueue.peek();
+                                        wroteData[i] = out[i];
                                     }
                                 } finally {
                                     //wlock.unlock();
