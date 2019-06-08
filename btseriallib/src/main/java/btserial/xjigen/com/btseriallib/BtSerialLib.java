@@ -121,7 +121,6 @@ public class BtSerialLib {
                     @Override public void accept(AclEvent aclEvent) throws Exception {
                         switch (aclEvent.getAction()) {
                             case BluetoothDevice.ACTION_ACL_CONNECTED:
-                                mState = ConnectState.Connected;
                                 break;
                             case BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED:
                                 break;
@@ -151,6 +150,7 @@ public class BtSerialLib {
                         _library.mServerSocket = bluetoothSocket;
                         _library.mServerBluetoothConnection = new BluetoothConnection(bluetoothSocket);
                         _library.mState = ConnectState.Connected;
+                        _library.mReadQueue.clear();
                         _library.mByteStreamLooper = Looper.myLooper();
                         _library.mServerBluetoothConnection.observeByteStream()
                                 .observeOn(AndroidSchedulers.from(_library.mByteStreamLooper,true))
@@ -237,6 +237,7 @@ public class BtSerialLib {
                                 _library.mClientSocket = bluetoothSocket;
                                 _library.mClientBluetoothConnection = new BluetoothConnection(bluetoothSocket);
                                 _library.mState = ConnectState.Connected;
+                                _library.mReadQueue.clear();
                                 _library.mByteStreamLooper = Looper.myLooper();
                                 _library.mClientBluetoothConnection.observeByteStream()
                                         .observeOn(AndroidSchedulers.from(_library.mByteStreamLooper,true))
@@ -301,8 +302,8 @@ public class BtSerialLib {
             for (BluetoothDevice dev : devices) {
                 JSONObject device = new JSONObject();
                 String devName = dev.getName();
-                if (devName == null) {
-                    devName = "NoName";
+                if (devName == null || devName.length() != 6 ||!canParseInt(devName,16)) {
+                    continue;
                 }
                 device.put("device", devName);
                 device.put("address", dev.getAddress());
@@ -316,6 +317,15 @@ public class BtSerialLib {
 
 
         return object.toString();
+    }
+
+    public static boolean canParseInt(String s, int radix) {
+        try {
+            int Val = Integer.parseInt(s, radix);
+            return true;
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     public static String getBluetoothDeviceAddress(){
@@ -340,7 +350,7 @@ public class BtSerialLib {
         }else {
             int length = _library.mReadQueue.size();
             byte buf[] = new  byte[length];
-            for (int i = 0; !_library.mReadQueue.isEmpty(); i++) {
+            for (int i = 0; i<len; i++) {
                 buf[i] = (_library.mReadQueue.remove());
             }
             return buf;
