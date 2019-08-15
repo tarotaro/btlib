@@ -48,7 +48,7 @@ public class BLEServer extends BluetoothGattServerCallback {
 
     public  Queue<Byte> getReadQueueLock() {
         //rlock.lock();
-        return this._readQueue;
+        return _readQueue;
     }
 
     public void readQueueUnlock(){

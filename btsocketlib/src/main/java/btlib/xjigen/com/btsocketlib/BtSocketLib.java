@@ -1,11 +1,15 @@
 package btlib.xjigen.com.btsocketlib;
 
+import android.Manifest;
 import android.app.Activity;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothDevice;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.provider.Settings;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import com.unity3d.player.UnityPlayer;
 
@@ -210,9 +214,18 @@ public class BtSocketLib implements ConnectInterface {
     private BtSocketLib(){
     }
 
-    public static void startServer()
+    public static boolean startServer()
     {
+        if (ContextCompat.checkSelfPermission(
+                _library.activity,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(_library.activity, AccessPermissionActivity.class);
+            _library.activity.startActivity(intent);
+            return false;
+        }
         _library.onStartServer();
+        return true;
     }
 
     public static boolean isAdvertiseSupported(){
@@ -224,8 +237,17 @@ public class BtSocketLib implements ConnectInterface {
         return add;
     }
 
-    public static void searchDevice() {
+    public static boolean searchDevice() {
+        if (ContextCompat.checkSelfPermission(
+                _library.activity,
+                Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            Intent intent = new Intent(_library.activity, AccessPermissionActivity.class);
+            _library.activity.startActivity(intent);
+            return false;
+        }
         _library.onSearchDevice();
+        return true;
     }
 
     public static String getUuidForName(){

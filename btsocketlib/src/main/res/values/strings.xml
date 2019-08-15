@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">BTSocketLib</string>
+    <string name="title_activity_access_permission">AccessPermissionActivity</string>
 </resources>
